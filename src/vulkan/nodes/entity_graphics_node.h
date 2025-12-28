@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <glm/glm.hpp>
 #include <memory>
+#include <limits>
 
 // Forward declarations
 class GraphicsPipelineManager;
@@ -54,6 +55,12 @@ public:
     
     // Force uniform buffer update on next frame (call when camera changes)
     void markUniformBufferDirty() { uniformBufferDirty = true; }
+    
+    // Invalidate cached state after swapchain recreation or layout cache clear
+    void invalidateCachedState() { 
+        cachedRenderPass = VK_NULL_HANDLE; 
+        cachedDescriptorLayout = VK_NULL_HANDLE;
+    }
 
 private:
     // Internal uniform buffer update
@@ -92,6 +99,22 @@ private:
     
     bool uniformBufferDirty = true;  // Force update on first frame
     uint32_t lastUpdatedFrameIndex = UINT32_MAX; // Track which frame index was last updated
+
+    // Cached render pass to avoid redundant lookups/creation
+    VkRenderPass cachedRenderPass = VK_NULL_HANDLE;
+    VkFormat cachedColorFormat = VK_FORMAT_UNDEFINED;
+    VkSampleCountFlagBits cachedSamples = VK_SAMPLE_COUNT_1_BIT;
+    bool cachedEnableMSAA = false;
+
+    // Cached descriptor layout used by the pipeline state
+    VkDescriptorSetLayout cachedDescriptorLayout = VK_NULL_HANDLE;
+    
+    // Cached pipeline layout for binding and push constants
+    VkPipelineLayout cachedPipelineLayout = VK_NULL_HANDLE;
+    
+    // Observed generations to detect cache invalidation
+    uint64_t observedLayoutGeneration = std::numeric_limits<uint64_t>::max();
+    uint64_t observedGraphicsPipelineGeneration = std::numeric_limits<uint64_t>::max();
     
     // Debug counters - zero overhead in release builds
     mutable FrameGraphDebug::DebugCounter debugCounter{};

@@ -80,27 +80,9 @@ VkPipeline PipelineSystemManager::createGraphicsPipeline(const PipelineCreationI
         std::cerr << "Pipeline managers not initialized" << std::endl;
         return VK_NULL_HANDLE;
     }
-    
-    // Load shaders
-    VkShaderModule vertexShader = VK_NULL_HANDLE;
-    VkShaderModule fragmentShader = VK_NULL_HANDLE;
-    
-    if (!info.vertexShaderPath.empty()) {
-        vertexShader = shaderManager->loadShaderFromFile(info.vertexShaderPath, VK_SHADER_STAGE_VERTEX_BIT);
-        if (vertexShader == VK_NULL_HANDLE) {
-            std::cerr << "Failed to load vertex shader: " << info.vertexShaderPath << std::endl;
-            return VK_NULL_HANDLE;
-        }
-    }
-    
-    if (!info.fragmentShaderPath.empty()) {
-        fragmentShader = shaderManager->loadShaderFromFile(info.fragmentShaderPath, VK_SHADER_STAGE_FRAGMENT_BIT);
-        if (fragmentShader == VK_NULL_HANDLE) {
-            std::cerr << "Failed to load fragment shader: " << info.fragmentShaderPath << std::endl;
-            return VK_NULL_HANDLE;
-        }
-    }
-    
+    // No need to pre-load shader modules here; the graphics manager/factory
+    // will load modules based on the state paths and cache them.
+
     // Create descriptor layout for this pipeline
     auto layoutSpec = DescriptorLayoutPresets::createEntityGraphicsLayout();
     VkDescriptorSetLayout descriptorLayout = layoutManager->getLayout(layoutSpec);
@@ -112,6 +94,15 @@ VkPipeline PipelineSystemManager::createGraphicsPipeline(const PipelineCreationI
     // Create graphics pipeline state
     GraphicsPipelineState pipelineState = GraphicsPipelinePresets::createEntityRenderingState(
         info.renderPass, descriptorLayout);
+    // Override shader paths if explicitly provided
+    if (!info.vertexShaderPath.empty()) {
+        if (pipelineState.shaderStages.size() < 1) pipelineState.shaderStages.resize(1);
+        pipelineState.shaderStages[0] = info.vertexShaderPath;
+    }
+    if (!info.fragmentShaderPath.empty()) {
+        if (pipelineState.shaderStages.size() < 2) pipelineState.shaderStages.resize(2);
+        pipelineState.shaderStages[1] = info.fragmentShaderPath;
+    }
     
     // Configure MSAA if requested
     if (info.enableMSAA) {
@@ -127,14 +118,9 @@ VkPipeline PipelineSystemManager::createComputePipeline(const std::string& compu
         std::cerr << "Pipeline managers not initialized" << std::endl;
         return VK_NULL_HANDLE;
     }
-    
-    // Load compute shader
-    VkShaderModule computeShader = shaderManager->loadShaderFromFile(computeShaderPath, VK_SHADER_STAGE_COMPUTE_BIT);
-    if (computeShader == VK_NULL_HANDLE) {
-        std::cerr << "Failed to load compute shader: " << computeShaderPath << std::endl;
-        return VK_NULL_HANDLE;
-    }
-    
+    // No need to pre-load shader modules here; the compute manager
+    // will load and cache modules based on the state path.
+
     // Create descriptor layout for compute pipeline
     auto layoutSpec = DescriptorLayoutPresets::createEntityComputeLayout();
     VkDescriptorSetLayout descriptorLayout = layoutManager->getLayout(layoutSpec);

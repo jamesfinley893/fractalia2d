@@ -159,6 +159,7 @@ void GraphicsPipelineManager::optimizeCache(uint64_t currentFrame) {
 void GraphicsPipelineManager::clearCache() {
     cache_.clear();
     renderPassManager_.clearCache();
+    ++generation_;
 }
 
 bool GraphicsPipelineManager::recreatePipelineCache() {
@@ -209,6 +210,8 @@ bool GraphicsPipelineManager::recreatePipelineCache() {
     
     isRecreating_ = false;
     std::cout << "GraphicsPipelineManager: Pipeline cache successfully recreated" << std::endl;
+    // Bump generation to signal dependents that pipelines/layouts may have changed
+    ++generation_;
     return true;
 }
 

@@ -548,15 +548,15 @@ namespace ShaderPresets {
     }
     
     ShaderModuleSpec createEntityVertexShaderSpec() {
-        return createVertexShaderSpec("shaders/compiled/vertex.spv");
+        return createVertexShaderSpec("shaders/vertex.vert.spv");
     }
     
     ShaderModuleSpec createEntityFragmentShaderSpec() {
-        return createFragmentShaderSpec("shaders/compiled/fragment.spv");
+        return createFragmentShaderSpec("shaders/fragment.frag.spv");
     }
     
     ShaderModuleSpec createEntityComputeShaderSpec() {
-        return createComputeShaderSpec("shaders/compiled/movement_random.comp.spv");
+        return createComputeShaderSpec("shaders/movement_random.comp.spv");
     }
 }
 

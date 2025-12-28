@@ -24,22 +24,32 @@ void FrameStateManager::updateFrameState(uint32_t frameIndex, bool computeUsed, 
     frameStates[frameIndex].graphicsUsed = graphicsUsed;
 }
 
+void FrameStateManager::setComputeUsed(uint32_t frameIndex, bool computeUsed) {
+    if (frameIndex >= frameStates.size()) return;
+    frameStates[frameIndex].computeUsed = computeUsed;
+}
+
+void FrameStateManager::setGraphicsUsed(uint32_t frameIndex, bool graphicsUsed) {
+    if (frameIndex >= frameStates.size()) return;
+    frameStates[frameIndex].graphicsUsed = graphicsUsed;
+}
+
 std::vector<VkFence> FrameStateManager::getFencesToWait(uint32_t frameIndex, VulkanSync* sync) const {
     if (frameIndex >= frameStates.size() || !sync) {
         return {};
     }
 
-    // Get the previous frame's state (circular buffer)
-    uint32_t previousFrameIndex = (frameIndex == 0) ? MAX_FRAMES_IN_FLIGHT - 1 : frameIndex - 1;
-    const auto& previousState = frameStates[previousFrameIndex];
+    // We are about to reuse the resources in this slot index. If the slot
+    // has outstanding work recorded the last time it was used, wait on its fences.
+    const auto& slotState = frameStates[frameIndex];
 
     std::vector<VkFence> fencesToWait;
     fencesToWait.reserve(2);
 
-    if (previousState.computeUsed) {
+    if (slotState.computeUsed) {
         fencesToWait.push_back(sync->getComputeFence(frameIndex));
     }
-    if (previousState.graphicsUsed) {
+    if (slotState.graphicsUsed) {
         fencesToWait.push_back(sync->getInFlightFence(frameIndex));
     }
 
@@ -48,9 +58,7 @@ std::vector<VkFence> FrameStateManager::getFencesToWait(uint32_t frameIndex, Vul
 
 bool FrameStateManager::hasActiveFences(uint32_t frameIndex) const {
     if (frameIndex >= frameStates.size()) return false;
-    
-    uint32_t previousFrameIndex = (frameIndex == 0) ? MAX_FRAMES_IN_FLIGHT - 1 : frameIndex - 1;
-    const auto& previousState = frameStates[previousFrameIndex];
-    
-    return previousState.computeUsed || previousState.graphicsUsed;
+
+    const auto& slotState = frameStates[frameIndex];
+    return slotState.computeUsed || slotState.graphicsUsed;
 }

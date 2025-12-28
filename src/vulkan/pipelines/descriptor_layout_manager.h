@@ -158,6 +158,9 @@ public:
     void optimizeCache(uint64_t currentFrame);
     void clearCache();
     
+    // Cache generation tracking so dependents can detect invalidation
+    uint64_t getGeneration() const { return generation_; }
+    
     // Statistics and debugging
     struct LayoutStats {
         uint32_t totalLayouts = 0;
@@ -214,6 +217,9 @@ private:
     // Configuration
     uint32_t maxCacheSize_ = DEFAULT_LAYOUT_CACHE_SIZE;
     uint64_t cacheCleanupInterval_ = CACHE_CLEANUP_INTERVAL;
+    
+    // Monotonic generation counter incremented on cache clear
+    uint64_t generation_ = 0;
     
     // Internal layout creation
     std::unique_ptr<CachedDescriptorLayout> createLayoutInternal(const DescriptorLayoutSpec& spec);

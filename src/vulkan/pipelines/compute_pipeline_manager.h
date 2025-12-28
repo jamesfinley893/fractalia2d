@@ -95,6 +95,9 @@ public:
     ComputeStats getStats() const;
     void resetFrameStats();
     void debugPrintCache() const;
+
+    // Cache generation for dependents to detect invalidation
+    uint64_t getGeneration() const { return generation_; }
     
     // Workgroup optimization
     glm::uvec3 calculateOptimalWorkgroupSize(uint32_t dataSize, 
@@ -134,6 +137,9 @@ private:
     ComputePipelineFactory factory_;
     ComputeDispatcher dispatcher_;
     ComputeDeviceInfo deviceInfo_;
+
+    // Monotonic generation counter incremented on cache clear/recreate
+    uint64_t generation_ = 0;
     
     // Async compilation tracking
     std::unordered_map<ComputePipelineState, std::future<std::unique_ptr<CachedComputePipeline>>, ComputePipelineStateHash> asyncCompilations;

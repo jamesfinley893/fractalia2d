@@ -374,7 +374,7 @@ void VulkanRenderer::cleanupModularArchitecture() {
 }
 
 void VulkanRenderer::drawFrameModular() {
-    // Wait for previous frame GPU work to complete using FrameStateManager
+    // Wait for GPU work tied to this slot index before reusing it
     if (frameStateManager && frameStateManager->hasActiveFences(currentFrame)) {
         auto fencesToWait = frameStateManager->getFencesToWait(currentFrame, sync.get());
         
@@ -441,6 +441,10 @@ void VulkanRenderer::drawFrameModular() {
         if (presentationSurface && presentationSurface->recreateSwapchain()) {
             std::cout << "VulkanRenderer: SWAPCHAIN RECREATION COMPLETED - Next frames should render normally" << std::endl;
             framebufferResized = false;  // Reset the flag
+            // Notify frame director so it can reset cached swapchain-dependent state
+            if (frameDirector) {
+                frameDirector->resetSwapchainCache();
+            }
         } else {
             std::cerr << "VulkanRenderer: CRITICAL ERROR - Swapchain recreation FAILED" << std::endl;
         }
@@ -460,14 +464,17 @@ void VulkanRenderer::drawFrameModular() {
         }
     }
     
-    // Update frame state tracking for next frame optimization
-    // Only update if frame was successful to avoid tracking invalid state
+    // Update per-slot usage flags: graphics used current slot, compute used next slot
     if (frameResult.success && submissionResult.success && frameStateManager) {
-        frameStateManager->updateFrameState(
-            currentFrame,
-            frameResult.executionResult.computeCommandBufferUsed,
-            frameResult.executionResult.graphicsCommandBufferUsed
-        );
+        const bool computeUsed = frameResult.executionResult.computeCommandBufferUsed;
+        const bool graphicsUsed = frameResult.executionResult.graphicsCommandBufferUsed;
+
+        // Mark graphics usage for the slot we just submitted graphics to
+        frameStateManager->setGraphicsUsed(currentFrame, graphicsUsed);
+
+        // Mark compute usage for the slot compute work was submitted to (N+1 slot)
+        uint32_t computeSlot = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+        frameStateManager->setComputeUsed(computeSlot, computeUsed);
     }
     
     totalTime += deltaTime;
