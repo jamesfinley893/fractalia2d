@@ -37,14 +37,18 @@ namespace {
 }
 
 PhysicsComputeNode::PhysicsComputeNode(
-    FrameGraphTypes::ResourceId entityBuffer, 
+    FrameGraphTypes::ResourceId velocityBuffer,
+    FrameGraphTypes::ResourceId runtimeStateBuffer,
+    FrameGraphTypes::ResourceId spatialMapBuffer,
     FrameGraphTypes::ResourceId positionBuffer,
     FrameGraphTypes::ResourceId currentPositionBuffer,
     FrameGraphTypes::ResourceId targetPositionBuffer,
     ComputePipelineManager* computeManager,
     GPUEntityManager* gpuEntityManager,
     std::shared_ptr<GPUTimeoutDetector> timeoutDetector
-) : entityBufferId(entityBuffer)
+) : velocityBufferId(velocityBuffer)
+  , runtimeStateBufferId(runtimeStateBuffer)
+  , spatialMapBufferId(spatialMapBuffer)
   , positionBufferId(positionBuffer)
   , currentPositionBufferId(currentPositionBuffer)
   , targetPositionBufferId(targetPositionBuffer)
@@ -63,15 +67,20 @@ PhysicsComputeNode::PhysicsComputeNode(
 
 std::vector<ResourceDependency> PhysicsComputeNode::getInputs() const {
     return {
-        {entityBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
+        {velocityBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
+        {runtimeStateBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
         {currentPositionBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
+        {spatialMapBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
     };
 }
 
 std::vector<ResourceDependency> PhysicsComputeNode::getOutputs() const {
     return {
+        {velocityBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
+        {runtimeStateBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
         {positionBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
         {currentPositionBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
+        {spatialMapBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
     };
 }
 

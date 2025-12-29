@@ -4,6 +4,7 @@
 #include "../pipelines/graphics_pipeline_manager.h"
 #include "../core/vulkan_function_loader.h"
 #include "../core/vulkan_constants.h"
+#include "../core/vulkan_sync.h"
 #include "gpu_synchronization_service.h"
 #include <iostream>
 
@@ -18,12 +19,18 @@ bool PresentationSurface::initialize(
     VulkanContext* context,
     VulkanSwapchain* swapchain,
     GraphicsPipelineManager* graphicsManager,
-    GPUSynchronizationService* syncManager
+    GPUSynchronizationService* syncManager,
+    VulkanSync* sync
 ) {
     this->context = context;
     this->swapchain = swapchain;
     this->graphicsManager = graphicsManager;
     this->syncManager = syncManager;
+    this->sync = sync;
+    if (!sync) {
+        std::cerr << "PresentationSurface: VulkanSync is required for image acquisition" << std::endl;
+        return false;
+    }
     return true;
 }
 
@@ -50,11 +57,12 @@ SurfaceAcquisitionResult PresentationSurface::acquireNextImage(uint32_t currentF
     // Use reasonable timeout to prevent infinite waits
     const uint64_t timeoutNs = FENCE_TIMEOUT_2_SECONDS;
     
+    VkSemaphore imageAvailableSemaphore = sync ? sync->getImageAvailableSemaphore(currentFrame) : VK_NULL_HANDLE;
     VkResult acquireResult = context->getLoader().vkAcquireNextImageKHR(
         context->getDevice(),
         swapchain->getSwapchain(),
         timeoutNs,
-        VK_NULL_HANDLE,
+        imageAvailableSemaphore,
         VK_NULL_HANDLE,
         &result.imageIndex
     );

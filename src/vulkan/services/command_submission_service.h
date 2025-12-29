@@ -41,7 +41,7 @@ private:
 
     // Helper methods
     SubmissionResult submitComputeWorkAsync(uint32_t computeFrame);
-    SubmissionResult submitGraphicsWork(uint32_t currentFrame);
+    SubmissionResult submitGraphicsWork(uint32_t currentFrame, bool waitForCompute);
     SubmissionResult presentFrame(uint32_t currentFrame, uint32_t imageIndex, bool framebufferResized);
 
     // Fence management helpers

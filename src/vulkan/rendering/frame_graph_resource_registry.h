@@ -18,7 +18,12 @@ public:
     bool importEntityResources();
 
     // Getters for resource IDs
-    FrameGraphTypes::ResourceId getEntityBufferId() const { return entityBufferId; }
+    FrameGraphTypes::ResourceId getVelocityBufferId() const { return velocityBufferId; }
+    FrameGraphTypes::ResourceId getMovementParamsBufferId() const { return movementParamsBufferId; }
+    FrameGraphTypes::ResourceId getRuntimeStateBufferId() const { return runtimeStateBufferId; }
+    FrameGraphTypes::ResourceId getColorBufferId() const { return colorBufferId; }
+    FrameGraphTypes::ResourceId getModelMatrixBufferId() const { return modelMatrixBufferId; }
+    FrameGraphTypes::ResourceId getSpatialMapBufferId() const { return spatialMapBufferId; }
     FrameGraphTypes::ResourceId getPositionBufferId() const { return positionBufferId; }
     FrameGraphTypes::ResourceId getCurrentPositionBufferId() const { return currentPositionBufferId; }
     FrameGraphTypes::ResourceId getTargetPositionBufferId() const { return targetPositionBufferId; }
@@ -29,7 +34,12 @@ private:
     GPUEntityManager* gpuEntityManager = nullptr;
 
     // Resource IDs
-    FrameGraphTypes::ResourceId entityBufferId = 0;
+    FrameGraphTypes::ResourceId velocityBufferId = 0;
+    FrameGraphTypes::ResourceId movementParamsBufferId = 0;
+    FrameGraphTypes::ResourceId runtimeStateBufferId = 0;
+    FrameGraphTypes::ResourceId colorBufferId = 0;
+    FrameGraphTypes::ResourceId modelMatrixBufferId = 0;
+    FrameGraphTypes::ResourceId spatialMapBufferId = 0;
     FrameGraphTypes::ResourceId positionBufferId = 0;
     FrameGraphTypes::ResourceId currentPositionBufferId = 0;
     FrameGraphTypes::ResourceId targetPositionBufferId = 0;

@@ -267,6 +267,11 @@ FrameGraph::ExecutionResult FrameGraph::execute(uint32_t frameIndex, float time,
     result.computeCommandBufferUsed = computeNeeded;
     result.graphicsCommandBufferUsed = graphicsNeeded;
     
+    // Reset command buffers for this frame before recording
+    if (queueManager_) {
+        queueManager_->resetCommandBuffersForFrame(frameIndex);
+    }
+    
     // Begin only the command buffers that will be used
     beginCommandBuffers(computeNeeded, graphicsNeeded, frameIndex);
     
@@ -365,10 +370,10 @@ void FrameGraph::executeNodesInOrder(uint32_t frameIndex, float time, float delt
         // Prepare frame with new standardized lifecycle
         node->prepareFrame(frameIndex, time, deltaTime);
         
-        // Insert barriers for this node using the barrier manager
-        barrierManager_.insertBarriersForNode(nodeId, currentGraphicsCmd, computeExecuted, node->needsGraphicsQueue());
-        
         VkCommandBuffer cmdBuffer = node->needsComputeQueue() ? currentComputeCmd : currentGraphicsCmd;
+        
+        // Insert barriers for this node on the same queue it will execute on
+        barrierManager_.insertBarriersForNode(nodeId, cmdBuffer, computeExecuted, node->needsGraphicsQueue());
         
         if (node->needsComputeQueue()) {
             computeExecuted = true;
@@ -400,10 +405,10 @@ bool FrameGraph::executeWithTimeoutMonitoring(uint32_t frameIndex, float time, f
         // Prepare frame with new standardized lifecycle
         node->prepareFrame(frameIndex, time, deltaTime);
         
-        // Insert barriers for this node using the barrier manager
-        barrierManager_.insertBarriersForNode(nodeId, currentGraphicsCmd, computeExecuted, node->needsGraphicsQueue());
-        
         VkCommandBuffer cmdBuffer = node->needsComputeQueue() ? currentComputeCmd : currentGraphicsCmd;
+        
+        // Insert barriers for this node on the same queue it will execute on
+        barrierManager_.insertBarriersForNode(nodeId, cmdBuffer, computeExecuted, node->needsGraphicsQueue());
         
         // Begin timeout monitoring for this node
         std::string nodeName = node->getName() + "_FrameGraph";

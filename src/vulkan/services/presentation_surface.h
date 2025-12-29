@@ -7,6 +7,7 @@ class VulkanContext;
 class VulkanSwapchain;
 class GraphicsPipelineManager;
 class GPUSynchronizationService;
+class VulkanSync;
 
 struct SurfaceAcquisitionResult {
     bool success = false;
@@ -24,7 +25,8 @@ public:
         VulkanContext* context,
         VulkanSwapchain* swapchain,
         GraphicsPipelineManager* graphicsManager,
-        GPUSynchronizationService* syncManager
+        GPUSynchronizationService* syncManager,
+        VulkanSync* sync
     );
     
     void cleanup();
@@ -43,6 +45,7 @@ private:
     VulkanSwapchain* swapchain = nullptr;
     GraphicsPipelineManager* graphicsManager = nullptr;
     GPUSynchronizationService* syncManager = nullptr;
+    VulkanSync* sync = nullptr;
     
     // Current render pass tracking for swapchain recreation
     VkRenderPass currentRenderPass = VK_NULL_HANDLE;

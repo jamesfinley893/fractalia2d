@@ -20,8 +20,8 @@ class EntityGraphicsNode : public FrameGraphNode {
     
 public:
     EntityGraphicsNode(
-        FrameGraphTypes::ResourceId entityBuffer, 
         FrameGraphTypes::ResourceId positionBuffer,
+        FrameGraphTypes::ResourceId movementParamsBuffer,
         FrameGraphTypes::ResourceId colorTarget,
         GraphicsPipelineManager* graphicsManager,
         VulkanSwapchain* swapchain,
@@ -70,8 +70,8 @@ private:
     bool updateUniformBufferData(const CachedUBO& ubo);
     
     // Resources
-    FrameGraphTypes::ResourceId entityBufferId;
     FrameGraphTypes::ResourceId positionBufferId;
+    FrameGraphTypes::ResourceId movementParamsBufferId;
     FrameGraphTypes::ResourceId colorTargetId; // Static placeholder - not used
     FrameGraphTypes::ResourceId currentSwapchainImageId = 0; // Dynamic per-frame ID
     

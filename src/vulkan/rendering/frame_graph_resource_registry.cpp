@@ -26,12 +26,47 @@ bool FrameGraphResourceRegistry::importEntityResources() {
         return false;
     }
 
-    // Import entity buffer
-    entityBufferId = frameGraph->importExternalBuffer(
-        "EntityBuffer",
+    // Import SoA buffers
+    velocityBufferId = frameGraph->importExternalBuffer(
+        "VelocityBuffer",
         gpuEntityManager->getVelocityBuffer(),
         gpuEntityManager->getVelocityBufferSize(),
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    );
+
+    movementParamsBufferId = frameGraph->importExternalBuffer(
+        "MovementParamsBuffer",
+        gpuEntityManager->getMovementParamsBuffer(),
+        gpuEntityManager->getMovementParamsBufferSize(),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    );
+
+    runtimeStateBufferId = frameGraph->importExternalBuffer(
+        "RuntimeStateBuffer",
+        gpuEntityManager->getRuntimeStateBuffer(),
+        gpuEntityManager->getRuntimeStateBufferSize(),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    );
+
+    colorBufferId = frameGraph->importExternalBuffer(
+        "ColorBuffer",
+        gpuEntityManager->getColorBuffer(),
+        gpuEntityManager->getColorBufferSize(),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    );
+
+    modelMatrixBufferId = frameGraph->importExternalBuffer(
+        "ModelMatrixBuffer",
+        gpuEntityManager->getModelMatrixBuffer(),
+        gpuEntityManager->getModelMatrixBufferSize(),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    );
+
+    spatialMapBufferId = frameGraph->importExternalBuffer(
+        "SpatialMapBuffer",
+        gpuEntityManager->getSpatialMapBuffer(),
+        gpuEntityManager->getSpatialMapBufferSize(),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
     );
 
     // Import position buffer

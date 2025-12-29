@@ -67,6 +67,7 @@ public:
     VkBuffer getRuntimeStateBuffer() const { return bufferManager.getRuntimeStateBuffer(); }
     VkBuffer getColorBuffer() const { return bufferManager.getColorBuffer(); }
     VkBuffer getModelMatrixBuffer() const { return bufferManager.getModelMatrixBuffer(); }
+    VkBuffer getSpatialMapBuffer() const { return bufferManager.getSpatialMapBuffer(); }
     
     // Position buffers remain the same
     VkBuffer getPositionBuffer() const { return bufferManager.getPositionBuffer(); }
@@ -85,6 +86,7 @@ public:
     VkDeviceSize getRuntimeStateBufferSize() const { return bufferManager.getRuntimeStateBufferSize(); }
     VkDeviceSize getColorBufferSize() const { return bufferManager.getColorBufferSize(); }
     VkDeviceSize getModelMatrixBufferSize() const { return bufferManager.getModelMatrixBufferSize(); }
+    VkDeviceSize getSpatialMapBufferSize() const { return bufferManager.getSpatialMapBufferSize(); }
     VkDeviceSize getPositionBufferSize() const { return bufferManager.getPositionBufferSize(); }
     
     

@@ -37,10 +37,10 @@ std::vector<VkFence> FrameStateManager::getFencesToWait(uint32_t frameIndex, Vul
     fencesToWait.reserve(2);
 
     if (previousState.computeUsed) {
-        fencesToWait.push_back(sync->getComputeFence(frameIndex));
+        fencesToWait.push_back(sync->getComputeFence(previousFrameIndex));
     }
     if (previousState.graphicsUsed) {
-        fencesToWait.push_back(sync->getInFlightFence(frameIndex));
+        fencesToWait.push_back(sync->getInFlightFence(previousFrameIndex));
     }
 
     return fencesToWait;

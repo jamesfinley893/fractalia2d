@@ -85,12 +85,22 @@ RenderFrameResult RenderFrameDirector::directFrame(
 }
 
 void RenderFrameDirector::updateResourceIds(
-    FrameGraphTypes::ResourceId entityBufferId,
+    FrameGraphTypes::ResourceId velocityBufferId,
+    FrameGraphTypes::ResourceId movementParamsBufferId,
+    FrameGraphTypes::ResourceId runtimeStateBufferId,
+    FrameGraphTypes::ResourceId colorBufferId,
+    FrameGraphTypes::ResourceId modelMatrixBufferId,
+    FrameGraphTypes::ResourceId spatialMapBufferId,
     FrameGraphTypes::ResourceId positionBufferId,
     FrameGraphTypes::ResourceId currentPositionBufferId,
     FrameGraphTypes::ResourceId targetPositionBufferId
 ) {
-    this->entityBufferId = entityBufferId;
+    this->velocityBufferId = velocityBufferId;
+    this->movementParamsBufferId = movementParamsBufferId;
+    this->runtimeStateBufferId = runtimeStateBufferId;
+    this->colorBufferId = colorBufferId;
+    this->modelMatrixBufferId = modelMatrixBufferId;
+    this->spatialMapBufferId = spatialMapBufferId;
     this->positionBufferId = positionBufferId;
     this->currentPositionBufferId = currentPositionBufferId;
     this->targetPositionBufferId = targetPositionBufferId;
@@ -129,7 +139,9 @@ void RenderFrameDirector::setupFrameGraph(uint32_t imageIndex) {
     if (needsInitialization) {
         // Movement compute node (sets velocity every 900 frames)
         computeNodeId = frameGraph->addNode<EntityComputeNode>(
-            entityBufferId,
+            velocityBufferId,
+            movementParamsBufferId,
+            runtimeStateBufferId,
             positionBufferId,
             currentPositionBufferId,
             targetPositionBufferId,
@@ -139,7 +151,9 @@ void RenderFrameDirector::setupFrameGraph(uint32_t imageIndex) {
         
         // Physics compute node (updates positions based on velocity every frame)
         physicsNodeId = frameGraph->addNode<PhysicsComputeNode>(
-            entityBufferId,
+            velocityBufferId,
+            runtimeStateBufferId,
+            spatialMapBufferId,
             positionBufferId,
             currentPositionBufferId,
             targetPositionBufferId,
@@ -150,8 +164,8 @@ void RenderFrameDirector::setupFrameGraph(uint32_t imageIndex) {
         // ELEGANT SOLUTION: Pass a dynamic swapchain image reference
         // Nodes will resolve the actual resource ID at execution time
         graphicsNodeId = frameGraph->addNode<EntityGraphicsNode>(
-            entityBufferId,
             positionBufferId,
+            movementParamsBufferId,
             0, // Placeholder - will be resolved dynamically
             pipelineSystem->getGraphicsManager(),
             swapchain,

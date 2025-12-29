@@ -4,6 +4,7 @@
 #include "../../vulkan/core/vulkan_raii.h"
 #include "entity_descriptor_bindings.h"
 #include <vulkan/vulkan.h>
+#include <vector>
 
 // Forward declarations
 class EntityBufferManager;
@@ -39,11 +40,11 @@ public:
     
     // Descriptor set access
     VkDescriptorSet getComputeDescriptorSet() const { return computeDescriptorSet; }
-    VkDescriptorSet getGraphicsDescriptorSet() const { return graphicsDescriptorSet; }
+    VkDescriptorSet getGraphicsDescriptorSet(uint32_t frameIndex) const;
 
     // State queries (entity-specific)
     bool hasValidComputeDescriptorSet() const { return computeDescriptorSet != VK_NULL_HANDLE; }
-    bool hasValidGraphicsDescriptorSet() const { return graphicsDescriptorSet != VK_NULL_HANDLE; }
+    bool hasValidGraphicsDescriptorSet() const;
 
     // Override from base class
     bool recreateDescriptorSets() override;
@@ -68,7 +69,7 @@ private:
     
     // Entity-specific descriptor sets
     VkDescriptorSet computeDescriptorSet = VK_NULL_HANDLE;
-    VkDescriptorSet graphicsDescriptorSet = VK_NULL_HANDLE;
+    std::vector<VkDescriptorSet> graphicsDescriptorSets;
     
     // Entity-specific helpers (SRP)
     bool createComputeDescriptorPool();

@@ -319,7 +319,7 @@ bool VulkanRenderer::initializeModularArchitecture() {
     }
     
     presentationSurface = std::make_unique<PresentationSurface>();
-    if (!presentationSurface->initialize(context.get(), swapchain.get(), pipelineSystem->getGraphicsManager(), syncService.get())) {
+    if (!presentationSurface->initialize(context.get(), swapchain.get(), pipelineSystem->getGraphicsManager(), syncService.get(), sync.get())) {
         std::cerr << "Failed to initialize swapchain coordinator" << std::endl;
         return false;
     }
@@ -340,7 +340,12 @@ bool VulkanRenderer::initializeModularArchitecture() {
     }
     
     frameDirector->updateResourceIds(
-        resourceRegistry->getEntityBufferId(),
+        resourceRegistry->getVelocityBufferId(),
+        resourceRegistry->getMovementParamsBufferId(),
+        resourceRegistry->getRuntimeStateBufferId(),
+        resourceRegistry->getColorBufferId(),
+        resourceRegistry->getModelMatrixBufferId(),
+        resourceRegistry->getSpatialMapBufferId(),
         resourceRegistry->getPositionBufferId(),
         resourceRegistry->getCurrentPositionBufferId(),
         resourceRegistry->getTargetPositionBufferId()
@@ -440,6 +445,9 @@ void VulkanRenderer::drawFrameModular() {
         
         if (presentationSurface && presentationSurface->recreateSwapchain()) {
             std::cout << "VulkanRenderer: SWAPCHAIN RECREATION COMPLETED - Next frames should render normally" << std::endl;
+            if (frameDirector) {
+                frameDirector->resetSwapchainCache();
+            }
             framebufferResized = false;  // Reset the flag
         } else {
             std::cerr << "VulkanRenderer: CRITICAL ERROR - Swapchain recreation FAILED" << std::endl;

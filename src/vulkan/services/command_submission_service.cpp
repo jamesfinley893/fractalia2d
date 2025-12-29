@@ -41,11 +41,11 @@ SubmissionResult CommandSubmissionService::submitFrame(
     SubmissionResult result;
 
     // ASYNC COMPUTE: Submit compute and graphics work in parallel
-    // Compute calculates frame N+1 while graphics renders frame N
+    // Compute and graphics record against the same frame index for consistent fencing
     
     // 1. Submit compute work asynchronously (no waiting for graphics)
     if (executionResult.computeCommandBufferUsed) {
-        result = submitComputeWorkAsync(currentFrame + 1); // Compute for NEXT frame
+        result = submitComputeWorkAsync(currentFrame);
         if (!result.success) {
             return result;
         }
@@ -53,7 +53,7 @@ SubmissionResult CommandSubmissionService::submitFrame(
 
     // 2. Submit graphics work in parallel (uses previous frame's compute results)
     if (executionResult.graphicsCommandBufferUsed) {
-        result = submitGraphicsWork(currentFrame);
+        result = submitGraphicsWork(currentFrame, executionResult.computeCommandBufferUsed);
         if (!result.success) {
             return result;
         }
@@ -86,9 +86,9 @@ SubmissionResult CommandSubmissionService::submitComputeWorkAsync(uint32_t compu
     }
 
     // Submit compute work using VulkanUtils
-    // ASYNC COMPUTE: No semaphore signaling needed since compute works on frame N+1
-    // Graphics reads from frame N-1 buffer, so no synchronization required
+    // Signal compute-finished semaphore so graphics can wait when needed
     std::vector<VkCommandBuffer> computeCmdBuffers = {computeCommandBuffer};
+    VkSemaphore computeFinishedSemaphore = sync->getComputeFinishedSemaphore(frameIndex);
     
     VkResult computeSubmitResult = VulkanUtils::submitCommands(
         queueManager->getComputeQueue(),
@@ -96,7 +96,7 @@ SubmissionResult CommandSubmissionService::submitComputeWorkAsync(uint32_t compu
         computeCmdBuffers,
         {}, // no wait semaphores
         {}, // no wait stages
-        {}, // no signal semaphores
+        {computeFinishedSemaphore}, // signal compute completion
         computeFence
     );
 
@@ -112,7 +112,7 @@ SubmissionResult CommandSubmissionService::submitComputeWorkAsync(uint32_t compu
     return result;
 }
 
-SubmissionResult CommandSubmissionService::submitGraphicsWork(uint32_t currentFrame) {
+SubmissionResult CommandSubmissionService::submitGraphicsWork(uint32_t currentFrame, bool waitForCompute) {
     SubmissionResult result;
 
     // Cache loader and device references for performance
@@ -134,12 +134,17 @@ SubmissionResult CommandSubmissionService::submitGraphicsWork(uint32_t currentFr
     VkSubmitInfo graphicsSubmitInfo{};
     graphicsSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    // Only wait for swapchain image availability (async compute works on different buffer)
-    VkSemaphore waitSemaphores[] = {sync->getImageAvailableSemaphore(currentFrame)};
-    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    graphicsSubmitInfo.waitSemaphoreCount = 1;
-    graphicsSubmitInfo.pWaitSemaphores = waitSemaphores;
-    graphicsSubmitInfo.pWaitDstStageMask = waitStages;
+    std::vector<VkSemaphore> waitSemaphores;
+    std::vector<VkPipelineStageFlags> waitStages;
+    waitSemaphores.push_back(sync->getImageAvailableSemaphore(currentFrame));
+    waitStages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+    if (waitForCompute) {
+        waitSemaphores.push_back(sync->getComputeFinishedSemaphore(currentFrame));
+        waitStages.push_back(VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_VERTEX_INPUT_BIT);
+    }
+    graphicsSubmitInfo.waitSemaphoreCount = static_cast<uint32_t>(waitSemaphores.size());
+    graphicsSubmitInfo.pWaitSemaphores = waitSemaphores.data();
+    graphicsSubmitInfo.pWaitDstStageMask = waitStages.data();
     graphicsSubmitInfo.commandBufferCount = 1;
     graphicsSubmitInfo.pCommandBuffers = &graphicsCommandBuffer;
 

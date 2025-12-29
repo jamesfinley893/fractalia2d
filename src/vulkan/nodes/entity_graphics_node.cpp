@@ -19,15 +19,15 @@
 #include <memory>
 
 EntityGraphicsNode::EntityGraphicsNode(
-    FrameGraphTypes::ResourceId entityBuffer, 
     FrameGraphTypes::ResourceId positionBuffer,
+    FrameGraphTypes::ResourceId movementParamsBuffer,
     FrameGraphTypes::ResourceId colorTarget,
     GraphicsPipelineManager* graphicsManager,
     VulkanSwapchain* swapchain,
     ResourceCoordinator* resourceCoordinator,
     GPUEntityManager* gpuEntityManager
-) : entityBufferId(entityBuffer)
-  , positionBufferId(positionBuffer)
+) : positionBufferId(positionBuffer)
+  , movementParamsBufferId(movementParamsBuffer)
   , colorTargetId(colorTarget)
   , graphicsManager(graphicsManager)
   , swapchain(swapchain)
@@ -51,8 +51,8 @@ EntityGraphicsNode::EntityGraphicsNode(
 
 std::vector<ResourceDependency> EntityGraphicsNode::getInputs() const {
     return {
-        {entityBufferId, ResourceAccess::Read, PipelineStage::VertexShader},
         {positionBufferId, ResourceAccess::Read, PipelineStage::VertexShader},
+        {movementParamsBufferId, ResourceAccess::Read, PipelineStage::VertexShader},
     };
 }
 
@@ -166,7 +166,7 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
     );
     
     // Bind single descriptor set with unified layout (uniform + storage buffers)
-    VkDescriptorSet entityDescriptorSet = gpuEntityManager->getDescriptorManager().getGraphicsDescriptorSet();
+    VkDescriptorSet entityDescriptorSet = gpuEntityManager->getDescriptorManager().getGraphicsDescriptorSet(currentFrameIndex);
     
     if (entityDescriptorSet != VK_NULL_HANDLE) {
         vk.vkCmdBindDescriptorSets(
@@ -177,7 +177,7 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
             0, nullptr
         );
     } else {
-        std::cerr << "EntityGraphicsNode: ERROR - Missing graphics descriptor set!" << std::endl;
+        std::cerr << "EntityGraphicsNode: ERROR - Missing graphics descriptor set for frame " << currentFrameIndex << "!" << std::endl;
         return;
     }
 

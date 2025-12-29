@@ -17,7 +17,9 @@ class EntityComputeNode : public FrameGraphNode {
     
 public:
     EntityComputeNode(
-        FrameGraphTypes::ResourceId entityBuffer, 
+        FrameGraphTypes::ResourceId velocityBuffer,
+        FrameGraphTypes::ResourceId movementParamsBuffer,
+        FrameGraphTypes::ResourceId runtimeStateBuffer,
         FrameGraphTypes::ResourceId positionBuffer,
         FrameGraphTypes::ResourceId currentPositionBuffer,
         FrameGraphTypes::ResourceId targetPositionBuffer,
@@ -57,7 +59,9 @@ private:
         uint32_t maxWorkgroupsPerChunk,
         uint32_t entityCount);
     
-    FrameGraphTypes::ResourceId entityBufferId;
+    FrameGraphTypes::ResourceId velocityBufferId;
+    FrameGraphTypes::ResourceId movementParamsBufferId;
+    FrameGraphTypes::ResourceId runtimeStateBufferId;
     FrameGraphTypes::ResourceId positionBufferId;
     FrameGraphTypes::ResourceId currentPositionBufferId;
     FrameGraphTypes::ResourceId targetPositionBufferId;

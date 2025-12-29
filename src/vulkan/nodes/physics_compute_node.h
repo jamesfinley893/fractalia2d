@@ -17,7 +17,9 @@ class PhysicsComputeNode : public FrameGraphNode {
     
 public:
     PhysicsComputeNode(
-        FrameGraphTypes::ResourceId entityBuffer, 
+        FrameGraphTypes::ResourceId velocityBuffer,
+        FrameGraphTypes::ResourceId runtimeStateBuffer,
+        FrameGraphTypes::ResourceId spatialMapBuffer,
         FrameGraphTypes::ResourceId positionBuffer,
         FrameGraphTypes::ResourceId currentPositionBuffer,
         FrameGraphTypes::ResourceId targetPositionBuffer,
@@ -50,7 +52,9 @@ private:
         uint32_t maxWorkgroupsPerChunk,
         uint32_t entityCount);
     
-    FrameGraphTypes::ResourceId entityBufferId;
+    FrameGraphTypes::ResourceId velocityBufferId;
+    FrameGraphTypes::ResourceId runtimeStateBufferId;
+    FrameGraphTypes::ResourceId spatialMapBufferId;
     FrameGraphTypes::ResourceId positionBufferId;
     FrameGraphTypes::ResourceId currentPositionBufferId;
     FrameGraphTypes::ResourceId targetPositionBufferId;

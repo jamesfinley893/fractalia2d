@@ -52,7 +52,12 @@ public:
 
     // Resource management
     void updateResourceIds(
-        FrameGraphTypes::ResourceId entityBufferId,
+        FrameGraphTypes::ResourceId velocityBufferId,
+        FrameGraphTypes::ResourceId movementParamsBufferId,
+        FrameGraphTypes::ResourceId runtimeStateBufferId,
+        FrameGraphTypes::ResourceId colorBufferId,
+        FrameGraphTypes::ResourceId modelMatrixBufferId,
+        FrameGraphTypes::ResourceId spatialMapBufferId,
         FrameGraphTypes::ResourceId positionBufferId,
         FrameGraphTypes::ResourceId currentPositionBufferId,
         FrameGraphTypes::ResourceId targetPositionBufferId
@@ -76,7 +81,12 @@ private:
     PresentationSurface* presentationSurface = nullptr;
 
     // Resource IDs
-    FrameGraphTypes::ResourceId entityBufferId = 0;
+    FrameGraphTypes::ResourceId velocityBufferId = 0;
+    FrameGraphTypes::ResourceId movementParamsBufferId = 0;
+    FrameGraphTypes::ResourceId runtimeStateBufferId = 0;
+    FrameGraphTypes::ResourceId colorBufferId = 0;
+    FrameGraphTypes::ResourceId modelMatrixBufferId = 0;
+    FrameGraphTypes::ResourceId spatialMapBufferId = 0;
     FrameGraphTypes::ResourceId positionBufferId = 0;
     FrameGraphTypes::ResourceId currentPositionBufferId = 0;
     FrameGraphTypes::ResourceId targetPositionBufferId = 0;

@@ -32,14 +32,18 @@ namespace {
 }
 
 EntityComputeNode::EntityComputeNode(
-    FrameGraphTypes::ResourceId entityBuffer, 
+    FrameGraphTypes::ResourceId velocityBuffer,
+    FrameGraphTypes::ResourceId movementParamsBuffer,
+    FrameGraphTypes::ResourceId runtimeStateBuffer,
     FrameGraphTypes::ResourceId positionBuffer,
     FrameGraphTypes::ResourceId currentPositionBuffer,
     FrameGraphTypes::ResourceId targetPositionBuffer,
     ComputePipelineManager* computeManager,
     GPUEntityManager* gpuEntityManager,
     std::shared_ptr<GPUTimeoutDetector> timeoutDetector
-) : entityBufferId(entityBuffer)
+) : velocityBufferId(velocityBuffer)
+  , movementParamsBufferId(movementParamsBuffer)
+  , runtimeStateBufferId(runtimeStateBuffer)
   , positionBufferId(positionBuffer)
   , currentPositionBufferId(currentPositionBuffer)
   , targetPositionBufferId(targetPositionBuffer)
@@ -58,13 +62,16 @@ EntityComputeNode::EntityComputeNode(
 
 std::vector<ResourceDependency> EntityComputeNode::getInputs() const {
     return {
-        {entityBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
+        {velocityBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
+        {movementParamsBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
+        {runtimeStateBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
     };
 }
 
 std::vector<ResourceDependency> EntityComputeNode::getOutputs() const {
     return {
-        {entityBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
+        {velocityBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
+        {runtimeStateBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
     };
 }
 

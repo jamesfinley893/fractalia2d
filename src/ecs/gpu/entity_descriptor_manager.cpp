@@ -6,10 +6,33 @@
 #include "../../vulkan/resources/core/resource_coordinator.h"
 #include "../../vulkan/resources/descriptors/descriptor_update_helper.h"
 #include "../../vulkan/resources/managers/descriptor_pool_manager.h"
+#include "../../vulkan/core/vulkan_constants.h"
 #include <iostream>
 #include <array>
 
 EntityDescriptorManager::EntityDescriptorManager() {
+}
+
+VkDescriptorSet EntityDescriptorManager::getGraphicsDescriptorSet(uint32_t frameIndex) const {
+    if (graphicsDescriptorSets.empty()) {
+        return VK_NULL_HANDLE;
+    }
+    if (frameIndex >= graphicsDescriptorSets.size()) {
+        return VK_NULL_HANDLE;
+    }
+    return graphicsDescriptorSets[frameIndex];
+}
+
+bool EntityDescriptorManager::hasValidGraphicsDescriptorSet() const {
+    if (graphicsDescriptorSets.empty()) {
+        return false;
+    }
+    for (auto set : graphicsDescriptorSets) {
+        if (set == VK_NULL_HANDLE) {
+            return false;
+        }
+    }
+    return true;
 }
 
 bool EntityDescriptorManager::initializeEntity(EntityBufferManager& bufferManager, ResourceCoordinator* resourceCoordinator) {
@@ -42,7 +65,7 @@ void EntityDescriptorManager::cleanupSpecialized() {
     resourceCoordinator = nullptr;
     
     computeDescriptorSet = VK_NULL_HANDLE;
-    graphicsDescriptorSet = VK_NULL_HANDLE;
+    graphicsDescriptorSets.clear();
 }
 
 
@@ -183,9 +206,9 @@ bool EntityDescriptorManager::createComputeDescriptorPool() {
 
 bool EntityDescriptorManager::createGraphicsDescriptorPool() {
     DescriptorPoolManager::DescriptorPoolConfig config;
-    config.maxSets = 1;
-    config.uniformBuffers = 1;  // Camera matrices
-    config.storageBuffers = EntityDescriptorBindings::Graphics::BINDING_COUNT - 1;  // Storage buffers (excluding uniform buffer)
+    config.maxSets = MAX_FRAMES_IN_FLIGHT;
+    config.uniformBuffers = MAX_FRAMES_IN_FLIGHT;  // One UBO per frame
+    config.storageBuffers = (EntityDescriptorBindings::Graphics::BINDING_COUNT - 1) * MAX_FRAMES_IN_FLIGHT;
     config.sampledImages = 0;
     config.storageImages = 0;
     config.samplers = 0;
@@ -234,10 +257,12 @@ bool EntityDescriptorManager::createGraphicsDescriptorSets(VkDescriptorSetLayout
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = graphicsDescriptorPool.get();
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &layout;
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, layout);
+    graphicsDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT, VK_NULL_HANDLE);
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(layouts.size());
+    allocInfo.pSetLayouts = layouts.data();
 
-    if (getContext()->getLoader().vkAllocateDescriptorSets(getContext()->getDevice(), &allocInfo, &graphicsDescriptorSet) != VK_SUCCESS) {
+    if (getContext()->getLoader().vkAllocateDescriptorSets(getContext()->getDevice(), &allocInfo, graphicsDescriptorSets.data()) != VK_SUCCESS) {
         std::cerr << "EntityDescriptorManager: Failed to allocate graphics descriptor sets" << std::endl;
         return false;
     }
@@ -290,14 +315,29 @@ bool EntityDescriptorManager::updateGraphicsDescriptorSet() {
         return false;
     }
 
-    // Use DescriptorUpdateHelper for DRY principle
-    std::vector<DescriptorUpdateHelper::BufferBinding> bindings = {
-        {EntityDescriptorBindings::Graphics::UNIFORM_BUFFER, uniformBuffers[0], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},  // Camera matrices
-        {EntityDescriptorBindings::Graphics::POSITION_BUFFER, bufferManager->getPositionBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},  // Entity positions
-        {EntityDescriptorBindings::Graphics::MOVEMENT_PARAMS_BUFFER, bufferManager->getMovementParamsBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER}  // Movement params for color
-    };
+    if (graphicsDescriptorSets.size() != MAX_FRAMES_IN_FLIGHT) {
+        std::cerr << "EntityDescriptorManager: Graphics descriptor sets not allocated per frame" << std::endl;
+        return false;
+    }
 
-    return DescriptorUpdateHelper::updateDescriptorSet(*getContext(), graphicsDescriptorSet, bindings);
+    if (uniformBuffers.size() < MAX_FRAMES_IN_FLIGHT) {
+        std::cerr << "EntityDescriptorManager: Insufficient uniform buffers for per-frame descriptor sets" << std::endl;
+        return false;
+    }
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        std::vector<DescriptorUpdateHelper::BufferBinding> bindings = {
+            {EntityDescriptorBindings::Graphics::UNIFORM_BUFFER, uniformBuffers[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},
+            {EntityDescriptorBindings::Graphics::POSITION_BUFFER, bufferManager->getPositionBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
+            {EntityDescriptorBindings::Graphics::MOVEMENT_PARAMS_BUFFER, bufferManager->getMovementParamsBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER}
+        };
+
+        if (!DescriptorUpdateHelper::updateDescriptorSet(*getContext(), graphicsDescriptorSets[i], bindings)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool EntityDescriptorManager::recreateDescriptorSets() {
@@ -382,17 +422,19 @@ bool EntityDescriptorManager::recreateGraphicsDescriptorSets() {
             std::cerr << "EntityDescriptorManager: ERROR - Failed to reset graphics descriptor pool" << std::endl;
             return false;
         }
-        graphicsDescriptorSet = VK_NULL_HANDLE;
+        graphicsDescriptorSets.clear();
     }
     
     // Allocate new descriptor set
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = graphicsDescriptorPool.get();
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &graphicsDescriptorSetLayout;
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, graphicsDescriptorSetLayout);
+    graphicsDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT, VK_NULL_HANDLE);
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(layouts.size());
+    allocInfo.pSetLayouts = layouts.data();
 
-    if (getContext()->getLoader().vkAllocateDescriptorSets(getContext()->getDevice(), &allocInfo, &graphicsDescriptorSet) != VK_SUCCESS) {
+    if (getContext()->getLoader().vkAllocateDescriptorSets(getContext()->getDevice(), &allocInfo, graphicsDescriptorSets.data()) != VK_SUCCESS) {
         std::cerr << "EntityDescriptorManager: ERROR - Failed to reallocate graphics descriptor set" << std::endl;
         return false;
     }
