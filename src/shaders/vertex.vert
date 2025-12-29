@@ -48,8 +48,9 @@ vec3 hsv2rgb(float h, float s, float v) {
 }
 
 void main() {
-    // Read computed positions from physics shader output
-    vec3 worldPos = computedPos[gl_InstanceIndex].xyz;
+    // Read particle positions from PBD output (3 particles per body)
+    uint particleIndex = gl_InstanceIndex * 3 + gl_VertexIndex;
+    vec3 worldPos = computedPos[particleIndex].xyz;
     
     // Extract movement parameters for color calculation from SoA buffers
     vec4 entityMovementParams = movementParamsBuffer.movementParams[gl_InstanceIndex];
@@ -60,28 +61,14 @@ void main() {
     vec4 controlParams = controlParamsBuffer.controlParams[gl_InstanceIndex];
     if (controlParams.z > 0.5) {
         color = vec3(1.0, 0.25, 0.1);
-        float rot = entityTime * 0.1;
-        mat4 rotationMatrix = mat4(
-            cos(rot),  sin(rot), 0, 0,
-           -sin(rot),  cos(rot), 0, 0,
-            0,         0,        1, 0,
-            worldPos,             1
-        );
-        gl_Position = ubo.proj * ubo.view * rotationMatrix * vec4(inPos * controlParams.w, 1.0);
+        gl_Position = ubo.proj * ubo.view * vec4(worldPos, 1.0);
         return;
     }
 
     // Player marker: negative amplitude indicates special rendering
     if (entityMovementParams.x < 0.0) {
         color = vec3(1.0, 0.25, 0.1);
-        float rot = entityTime * 0.1;
-        mat4 rotationMatrix = mat4(
-            cos(rot),  sin(rot), 0, 0,
-           -sin(rot),  cos(rot), 0, 0,
-            0,         0,        1, 0,
-            worldPos,             1
-        );
-        gl_Position = ubo.proj * ubo.view * rotationMatrix * vec4(inPos * 1.8, 1.0);
+        gl_Position = ubo.proj * ubo.view * vec4(worldPos, 1.0);
         return;
     }
     
@@ -129,14 +116,5 @@ void main() {
     
     color = hsv2rgb(hue, saturation, brightness);
     
-    // Apply rotation based on time and final transformation
-    float rot = entityTime * 0.1;
-    mat4 rotationMatrix = mat4(
-        cos(rot),  sin(rot), 0, 0,
-       -sin(rot),  cos(rot), 0, 0,
-        0,         0,        1, 0,
-        worldPos,             1
-    );
-    
-    gl_Position = ubo.proj * ubo.view * rotationMatrix * vec4(inPos, 1.0);
+    gl_Position = ubo.proj * ubo.view * vec4(worldPos, 1.0);
 }

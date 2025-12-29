@@ -61,6 +61,12 @@ public:
         FrameGraphTypes::ResourceId spatialMapBufferId,
         FrameGraphTypes::ResourceId controlParamsBufferId,
         FrameGraphTypes::ResourceId spatialNextBufferId,
+        FrameGraphTypes::ResourceId particleVelocityBufferId,
+        FrameGraphTypes::ResourceId particleInvMassBufferId,
+        FrameGraphTypes::ResourceId particleBodyBufferId,
+        FrameGraphTypes::ResourceId bodyDataBufferId,
+        FrameGraphTypes::ResourceId bodyParamsBufferId,
+        FrameGraphTypes::ResourceId distanceConstraintBufferId,
         FrameGraphTypes::ResourceId positionBufferId,
         FrameGraphTypes::ResourceId currentPositionBufferId,
         FrameGraphTypes::ResourceId targetPositionBufferId
@@ -92,6 +98,12 @@ private:
     FrameGraphTypes::ResourceId spatialMapBufferId = 0;
     FrameGraphTypes::ResourceId controlParamsBufferId = 0;
     FrameGraphTypes::ResourceId spatialNextBufferId = 0;
+    FrameGraphTypes::ResourceId particleVelocityBufferId = 0;
+    FrameGraphTypes::ResourceId particleInvMassBufferId = 0;
+    FrameGraphTypes::ResourceId particleBodyBufferId = 0;
+    FrameGraphTypes::ResourceId bodyDataBufferId = 0;
+    FrameGraphTypes::ResourceId bodyParamsBufferId = 0;
+    FrameGraphTypes::ResourceId distanceConstraintBufferId = 0;
     FrameGraphTypes::ResourceId positionBufferId = 0;
     FrameGraphTypes::ResourceId currentPositionBufferId = 0;
     FrameGraphTypes::ResourceId targetPositionBufferId = 0;

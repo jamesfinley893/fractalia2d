@@ -348,6 +348,12 @@ bool VulkanRenderer::initializeModularArchitecture() {
         resourceRegistry->getSpatialMapBufferId(),
         resourceRegistry->getControlParamsBufferId(),
         resourceRegistry->getSpatialNextBufferId(),
+        resourceRegistry->getParticleVelocityBufferId(),
+        resourceRegistry->getParticleInvMassBufferId(),
+        resourceRegistry->getParticleBodyBufferId(),
+        resourceRegistry->getBodyDataBufferId(),
+        resourceRegistry->getBodyParamsBufferId(),
+        resourceRegistry->getDistanceConstraintBufferId(),
         resourceRegistry->getPositionBufferId(),
         resourceRegistry->getCurrentPositionBufferId(),
         resourceRegistry->getTargetPositionBufferId()

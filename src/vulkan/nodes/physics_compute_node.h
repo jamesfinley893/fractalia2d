@@ -25,6 +25,12 @@ public:
         FrameGraphTypes::ResourceId targetPositionBufferId = 0;
         FrameGraphTypes::ResourceId controlParamsBufferId = 0;
         FrameGraphTypes::ResourceId spatialNextBufferId = 0;
+        FrameGraphTypes::ResourceId particleVelocityBufferId = 0;
+        FrameGraphTypes::ResourceId particleInvMassBufferId = 0;
+        FrameGraphTypes::ResourceId particleBodyBufferId = 0;
+        FrameGraphTypes::ResourceId bodyDataBufferId = 0;
+        FrameGraphTypes::ResourceId bodyParamsBufferId = 0;
+        FrameGraphTypes::ResourceId distanceConstraintBufferId = 0;
         ComputePipelineManager* computeManager = nullptr;
         GPUEntityManager* gpuEntityManager = nullptr;
         std::shared_ptr<GPUTimeoutDetector> timeoutDetector = nullptr;
@@ -58,7 +64,7 @@ private:
         const class ComputeDispatch& dispatch,
         uint32_t totalWorkgroups,
         uint32_t maxWorkgroupsPerChunk,
-        uint32_t entityCount,
+        uint32_t elementCount,
         bool finalToGraphics);
     
     Data data;
@@ -80,12 +86,14 @@ private:
     bool pipelineDirty = true;
     
     // Frame data for compute shader
-    struct PhysicsPushConstants {
+    struct PBDPushConstants {
         float time;
         float deltaTime;
-        uint32_t entityCount;
+        uint32_t bodyCount;
+        uint32_t particleCount;
+        uint32_t constraintCount;
         uint32_t frame;
-        uint32_t entityOffset;  // For chunked dispatches
-        uint32_t padding[3];    // Ensure 16-byte alignment
+        uint32_t elementOffset;
+        uint32_t mode;
     } pushConstants{};
 };

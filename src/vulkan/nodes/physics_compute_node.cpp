@@ -6,6 +6,7 @@
 #include "../core/vulkan_constants.h"
 #include "../pipelines/descriptor_layout_manager.h"
 #include "../monitoring/gpu_timeout_detector.h"
+#include "../../ecs/gpu/soft_body_constants.h"
 #include <iostream>
 #include <array>
 #include <glm/glm.hpp>
@@ -19,15 +20,8 @@ namespace {
         bool useChunking;
     };
     
-    DispatchParams calculateDispatchParams(uint32_t entityCount, uint32_t maxWorkgroups, bool forceChunking) {
-        // Calculate workgroups needed for both spatial map clearing and entity processing
-        const uint32_t SPATIAL_MAP_SIZE = 4096;
-        const uint32_t spatialClearWorkgroups = (SPATIAL_MAP_SIZE + THREADS_PER_WORKGROUP - 1) / THREADS_PER_WORKGROUP;
-        const uint32_t entityWorkgroups = (entityCount + THREADS_PER_WORKGROUP - 1) / THREADS_PER_WORKGROUP;
-        
-        // Use maximum of both requirements
-        const uint32_t totalWorkgroups = std::max(spatialClearWorkgroups, entityWorkgroups);
-        
+    DispatchParams calculateDispatchParams(uint32_t elementCount, uint32_t maxWorkgroups, bool forceChunking) {
+        const uint32_t totalWorkgroups = (elementCount + THREADS_PER_WORKGROUP - 1) / THREADS_PER_WORKGROUP;
         return {
             totalWorkgroups,
             maxWorkgroups,
@@ -52,10 +46,17 @@ std::vector<ResourceDependency> PhysicsComputeNode::getInputs() const {
     return {
         {data.velocityBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
         {data.runtimeStateBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
+        {data.positionBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
         {data.currentPositionBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
         {data.spatialMapBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
         {data.controlParamsBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
         {data.spatialNextBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
+        {data.particleVelocityBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
+        {data.particleInvMassBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
+        {data.particleBodyBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
+        {data.bodyDataBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
+        {data.bodyParamsBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
+        {data.distanceConstraintBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
     };
 }
 
@@ -66,6 +67,7 @@ std::vector<ResourceDependency> PhysicsComputeNode::getOutputs() const {
         {data.positionBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
         {data.currentPositionBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
         {data.spatialMapBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
+        {data.particleVelocityBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
     };
 }
 
@@ -108,8 +110,8 @@ void PhysicsComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
         return;
     }
     
-    const uint32_t entityCount = data.gpuEntityManager->getEntityCount();
-    if (entityCount == 0) {
+    const uint32_t bodyCount = data.gpuEntityManager->getEntityCount();
+    if (bodyCount == 0) {
         FRAME_GRAPH_DEBUG_LOG_THROTTLED(debugCounter, 1800, "PhysicsComputeNode: No entities to process");
         return;
     }
@@ -137,12 +139,16 @@ void PhysicsComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
         return;
     }
     
+    const uint32_t particleCount = bodyCount * SoftBodyConstants::kParticlesPerBody;
+    const uint32_t constraintCount = bodyCount * SoftBodyConstants::kConstraintsPerBody;
+
     // Configure push constants and dispatch
-    pushConstants.entityCount = entityCount;
+    pushConstants.bodyCount = bodyCount;
+    pushConstants.particleCount = particleCount;
+    pushConstants.constraintCount = constraintCount;
     dispatch.pushConstantData = &pushConstants;
-    dispatch.pushConstantSize = sizeof(PhysicsPushConstants);
+    dispatch.pushConstantSize = sizeof(PBDPushConstants);
     dispatch.pushConstantStages = VK_SHADER_STAGE_COMPUTE_BIT;
-    dispatch.calculateOptimalDispatch(entityCount, glm::uvec3(THREADS_PER_WORKGROUP, 1, 1));
     
     // Apply adaptive workload management
     uint32_t maxWorkgroupsPerDispatch = adaptiveMaxWorkgroups;
@@ -163,16 +169,8 @@ void PhysicsComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
     }
     
     // Calculate dispatch parameters
-    auto dispatchParams = calculateDispatchParams(entityCount, maxWorkgroupsPerDispatch, shouldForceChunking);
-    
-    // Validate dispatch limits
-    if (dispatchParams.totalWorkgroups > 65535) {
-        std::cerr << "ERROR: Workgroup count " << dispatchParams.totalWorkgroups << " exceeds Vulkan limit!" << std::endl;
-        return;
-    }
-    
     // Debug logging (thread-safe) - once every 30 seconds
-    FRAME_GRAPH_DEBUG_LOG_THROTTLED(debugCounter, 1800, "PhysicsComputeNode: " << entityCount << " entities → " << dispatchParams.totalWorkgroups << " workgroups");
+    FRAME_GRAPH_DEBUG_LOG_THROTTLED(debugCounter, 1800, "PhysicsComputeNode: " << bodyCount << " bodies, " << particleCount << " particles");
     
     const VulkanContext* context = frameGraph.getContext();
     if (!context) {
@@ -190,45 +188,65 @@ void PhysicsComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
         commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, dispatch.layout,
         0, 1, &dispatch.descriptorSets[0], 0, nullptr);
     
-    constexpr uint32_t solverIterations = 2;
-    for (uint32_t iter = 0; iter < solverIterations; ++iter) {
-        if (!dispatchParams.useChunking) {
-            // Single dispatch execution
-            std::cout << "PhysicsComputeNode: Starting single dispatch execution..." << std::endl;
-            if (data.timeoutDetector) {
-                data.timeoutDetector->beginComputeDispatch("Physics", dispatchParams.totalWorkgroups);
-            }
-            
-            vk.vkCmdPushConstants(
-                commandBuffer, dispatch.layout, VK_SHADER_STAGE_COMPUTE_BIT,
-                0, sizeof(PhysicsPushConstants), &pushConstants);
-            
-            vk.vkCmdDispatch(commandBuffer, dispatchParams.totalWorkgroups, 1, 1);
-            
-            if (data.timeoutDetector) {
-                data.timeoutDetector->endComputeDispatch();
-            }
-        } else {
-            executeChunkedDispatch(commandBuffer, context, dispatch, 
-                                  dispatchParams.totalWorkgroups, dispatchParams.maxWorkgroupsPerChunk, entityCount,
-                                  iter + 1 == solverIterations);
+    auto dispatchPass = [&](const char* name, uint32_t mode, uint32_t elementCount, bool finalToGraphics) {
+        if (elementCount == 0) {
+            return;
+        }
+        pushConstants.mode = mode;
+        pushConstants.elementOffset = 0;
+
+        auto dispatchParams = calculateDispatchParams(elementCount, maxWorkgroupsPerDispatch, shouldForceChunking);
+        if (dispatchParams.totalWorkgroups > 65535) {
+            std::cerr << "ERROR: Workgroup count " << dispatchParams.totalWorkgroups << " exceeds Vulkan limit!" << std::endl;
+            return;
         }
 
         if (!dispatchParams.useChunking) {
+            if (data.timeoutDetector) {
+                data.timeoutDetector->beginComputeDispatch(name, dispatchParams.totalWorkgroups);
+            }
+
+            vk.vkCmdPushConstants(
+                commandBuffer, dispatch.layout, VK_SHADER_STAGE_COMPUTE_BIT,
+                0, sizeof(PBDPushConstants), &pushConstants);
+
+            vk.vkCmdDispatch(commandBuffer, dispatchParams.totalWorkgroups, 1, 1);
+
+            if (data.timeoutDetector) {
+                data.timeoutDetector->endComputeDispatch();
+            }
+
             VkMemoryBarrier memoryBarrier{};
             memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
             memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-            memoryBarrier.dstAccessMask = (iter + 1 == solverIterations)
+            memoryBarrier.dstAccessMask = finalToGraphics
                 ? VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT
                 : (VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
-            
+
             vk.vkCmdPipelineBarrier(
                 commandBuffer,
                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                iter + 1 == solverIterations ? VK_PIPELINE_STAGE_VERTEX_INPUT_BIT : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                finalToGraphics ? VK_PIPELINE_STAGE_VERTEX_INPUT_BIT : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
+        } else {
+            executeChunkedDispatch(commandBuffer, context, dispatch,
+                                   dispatchParams.totalWorkgroups, dispatchParams.maxWorkgroupsPerChunk,
+                                   elementCount, finalToGraphics);
         }
+    };
+
+    dispatchPass("PBD_Integrate", 0u, particleCount, false);
+    dispatchPass("PBD_ClearSpatial", 1u, 4096u, false);
+    dispatchPass("PBD_BuildSpatial", 2u, particleCount, false);
+
+    constexpr uint32_t solverIterations = 8;
+    for (uint32_t iter = 0; iter < solverIterations; ++iter) {
+        dispatchPass("PBD_SolveDistance", 3u, constraintCount, false);
+        dispatchPass("PBD_SolveArea", 4u, bodyCount, false);
+        dispatchPass("PBD_Collide", 5u, particleCount, false);
     }
+
+    dispatchPass("PBD_Finalize", 6u, particleCount, true);
 }
 
 void PhysicsComputeNode::executeChunkedDispatch(
@@ -237,7 +255,7 @@ void PhysicsComputeNode::executeChunkedDispatch(
     const ComputeDispatch& dispatch,
     uint32_t totalWorkgroups,
     uint32_t maxWorkgroupsPerChunk,
-    uint32_t entityCount,
+    uint32_t elementCount,
     bool finalToGraphics) {
     
     // Cache loader reference for performance
@@ -248,9 +266,9 @@ void PhysicsComputeNode::executeChunkedDispatch(
     
     while (processedWorkgroups < totalWorkgroups) {
         uint32_t currentChunkSize = std::min(maxWorkgroupsPerChunk, totalWorkgroups - processedWorkgroups);
-        uint32_t baseEntityOffset = processedWorkgroups * THREADS_PER_WORKGROUP;
+        uint32_t baseElementOffset = processedWorkgroups * THREADS_PER_WORKGROUP;
         
-        if (entityCount <= baseEntityOffset) break; // No more entities to process
+        if (elementCount <= baseElementOffset) break; // No more elements to process
         
         // Monitor chunk execution
         if (data.timeoutDetector) {
@@ -259,12 +277,12 @@ void PhysicsComputeNode::executeChunkedDispatch(
         }
         
         // Update push constants for this chunk
-        PhysicsPushConstants chunkPushConstants = pushConstants;
-        chunkPushConstants.entityOffset = baseEntityOffset;
+        PBDPushConstants chunkPushConstants = pushConstants;
+        chunkPushConstants.elementOffset = baseElementOffset;
         
         vk.vkCmdPushConstants(
             commandBuffer, dispatch.layout, VK_SHADER_STAGE_COMPUTE_BIT,
-            0, sizeof(PhysicsPushConstants), &chunkPushConstants);
+            0, sizeof(PBDPushConstants), &chunkPushConstants);
         
         vk.vkCmdDispatch(commandBuffer, currentChunkSize, 1, 1);
         
@@ -306,7 +324,7 @@ void PhysicsComputeNode::executeChunkedDispatch(
         uint32_t chunkLogCounter = FrameGraphDebug::incrementCounter(debugCounter);
         if (chunkLogCounter % 300 == 0) {
             std::cout << "[FrameGraph Debug] PhysicsComputeNode: Split dispatch into " << chunkCount 
-                      << " chunks (" << maxWorkgroupsPerChunk << " max) for " << entityCount << " entities (occurrence #" << chunkLogCounter << ")" << std::endl;
+                      << " chunks (" << maxWorkgroupsPerChunk << " max) for " << elementCount << " elements (occurrence #" << chunkLogCounter << ")" << std::endl;
             
             if (data.timeoutDetector) {
                 auto stats = data.timeoutDetector->getStats();

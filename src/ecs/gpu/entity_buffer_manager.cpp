@@ -18,6 +18,8 @@ EntityBufferManager::~EntityBufferManager() {
 bool EntityBufferManager::initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxEntities) {
     this->maxEntities = maxEntities;
     this->context = &context;
+    maxParticles = maxEntities * SoftBodyConstants::kParticlesPerBody;
+    maxConstraints = maxEntities * SoftBodyConstants::kConstraintsPerBody;
     
     // Initialize upload service
     if (!uploadService.initialize(resourceCoordinator)) {
@@ -62,8 +64,8 @@ bool EntityBufferManager::initialize(const VulkanContext& context, ResourceCoord
         return false;
     }
     
-    // Initialize position buffer coordinator
-    if (!positionCoordinator.initialize(context, resourceCoordinator, maxEntities)) {
+    // Initialize position buffer coordinator for particle positions
+    if (!positionCoordinator.initialize(context, resourceCoordinator, maxParticles)) {
         std::cerr << "EntityBufferManager: Failed to initialize position coordinator" << std::endl;
         return false;
     }
@@ -73,8 +75,38 @@ bool EntityBufferManager::initialize(const VulkanContext& context, ResourceCoord
         return false;
     }
 
-    if (!spatialNextBuffer.initialize(context, resourceCoordinator, maxEntities)) {
+    if (!spatialNextBuffer.initialize(context, resourceCoordinator, maxParticles)) {
         std::cerr << "EntityBufferManager: Failed to initialize spatial next buffer" << std::endl;
+        return false;
+    }
+    
+    if (!particleVelocityBuffer.initialize(context, resourceCoordinator, maxParticles)) {
+        std::cerr << "EntityBufferManager: Failed to initialize particle velocity buffer" << std::endl;
+        return false;
+    }
+
+    if (!particleInvMassBuffer.initialize(context, resourceCoordinator, maxParticles)) {
+        std::cerr << "EntityBufferManager: Failed to initialize particle inv mass buffer" << std::endl;
+        return false;
+    }
+
+    if (!particleBodyBuffer.initialize(context, resourceCoordinator, maxParticles)) {
+        std::cerr << "EntityBufferManager: Failed to initialize particle body buffer" << std::endl;
+        return false;
+    }
+
+    if (!bodyDataBuffer.initialize(context, resourceCoordinator, maxEntities)) {
+        std::cerr << "EntityBufferManager: Failed to initialize body data buffer" << std::endl;
+        return false;
+    }
+
+    if (!bodyParamsBuffer.initialize(context, resourceCoordinator, maxEntities)) {
+        std::cerr << "EntityBufferManager: Failed to initialize body params buffer" << std::endl;
+        return false;
+    }
+
+    if (!distanceConstraintBuffer.initialize(context, resourceCoordinator, maxConstraints)) {
+        std::cerr << "EntityBufferManager: Failed to initialize distance constraint buffer" << std::endl;
         return false;
     }
     
@@ -93,9 +125,17 @@ void EntityBufferManager::cleanup() {
     velocityBuffer.cleanup();
     controlParamsBuffer.cleanup();
     spatialNextBuffer.cleanup();
+    particleVelocityBuffer.cleanup();
+    particleInvMassBuffer.cleanup();
+    particleBodyBuffer.cleanup();
+    bodyDataBuffer.cleanup();
+    bodyParamsBuffer.cleanup();
+    distanceConstraintBuffer.cleanup();
     uploadService.cleanup();
     
     maxEntities = 0;
+    maxParticles = 0;
+    maxConstraints = 0;
 }
 
 
@@ -129,6 +169,30 @@ bool EntityBufferManager::uploadControlParamsData(const void* data, VkDeviceSize
 
 bool EntityBufferManager::uploadSpatialNextData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
     return uploadService.upload(spatialNextBuffer, data, size, offset);
+}
+
+bool EntityBufferManager::uploadParticleVelocityData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
+    return uploadService.upload(particleVelocityBuffer, data, size, offset);
+}
+
+bool EntityBufferManager::uploadParticleInvMassData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
+    return uploadService.upload(particleInvMassBuffer, data, size, offset);
+}
+
+bool EntityBufferManager::uploadParticleBodyData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
+    return uploadService.upload(particleBodyBuffer, data, size, offset);
+}
+
+bool EntityBufferManager::uploadBodyData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
+    return uploadService.upload(bodyDataBuffer, data, size, offset);
+}
+
+bool EntityBufferManager::uploadBodyParamsData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
+    return uploadService.upload(bodyParamsBuffer, data, size, offset);
+}
+
+bool EntityBufferManager::uploadDistanceConstraintData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
+    return uploadService.upload(distanceConstraintBuffer, data, size, offset);
 }
 
 bool EntityBufferManager::uploadPositionDataToAllBuffers(const void* data, VkDeviceSize size, VkDeviceSize offset) {

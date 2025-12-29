@@ -83,6 +83,48 @@ bool FrameGraphResourceRegistry::importEntityResources() {
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
     );
 
+    particleVelocityBufferId = frameGraph->importExternalBuffer(
+        "ParticleVelocityBuffer",
+        gpuEntityManager->getParticleVelocityBuffer(),
+        gpuEntityManager->getParticleVelocityBufferSize(),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    );
+
+    particleInvMassBufferId = frameGraph->importExternalBuffer(
+        "ParticleInvMassBuffer",
+        gpuEntityManager->getParticleInvMassBuffer(),
+        gpuEntityManager->getParticleInvMassBufferSize(),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    );
+
+    particleBodyBufferId = frameGraph->importExternalBuffer(
+        "ParticleBodyBuffer",
+        gpuEntityManager->getParticleBodyBuffer(),
+        gpuEntityManager->getParticleBodyBufferSize(),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    );
+
+    bodyDataBufferId = frameGraph->importExternalBuffer(
+        "BodyDataBuffer",
+        gpuEntityManager->getBodyDataBuffer(),
+        gpuEntityManager->getBodyDataBufferSize(),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    );
+
+    bodyParamsBufferId = frameGraph->importExternalBuffer(
+        "BodyParamsBuffer",
+        gpuEntityManager->getBodyParamsBuffer(),
+        gpuEntityManager->getBodyParamsBufferSize(),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    );
+
+    distanceConstraintBufferId = frameGraph->importExternalBuffer(
+        "DistanceConstraintBuffer",
+        gpuEntityManager->getDistanceConstraintBuffer(),
+        gpuEntityManager->getDistanceConstraintBufferSize(),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    );
+
     // Import position buffer
     positionBufferId = frameGraph->importExternalBuffer(
         "PositionBuffer",

@@ -4,6 +4,7 @@
 #include "../components/entity.h"
 #include "entity_buffer_manager.h"
 #include "entity_descriptor_manager.h"
+#include "soft_body_constants.h"
 #include <vulkan/vulkan.h>
 #include <glm/glm.hpp>
 #include <vector>
@@ -48,6 +49,40 @@ struct GPUEntitySoA {
     void addFromECS(const Transform& transform, const Renderable& renderable, const MovementPattern& pattern);
 };
 
+struct GPUSoftBodyStaging {
+    std::vector<glm::vec4> particlePositions;
+    std::vector<glm::vec4> particlePrevPositions;
+    std::vector<glm::vec4> particleVelocities;
+    std::vector<float> particleInvMass;
+    std::vector<uint32_t> particleBodyIds;
+    std::vector<glm::uvec4> bodyData;
+    std::vector<glm::vec4> bodyParams;
+    std::vector<GPUDistanceConstraint> distanceConstraints;
+
+    void reserve(size_t bodyCount) {
+        size_t particleCount = bodyCount * SoftBodyConstants::kParticlesPerBody;
+        size_t constraintCount = bodyCount * SoftBodyConstants::kConstraintsPerBody;
+        particlePositions.reserve(particleCount);
+        particlePrevPositions.reserve(particleCount);
+        particleVelocities.reserve(particleCount);
+        particleInvMass.reserve(particleCount);
+        particleBodyIds.reserve(particleCount);
+        bodyData.reserve(bodyCount);
+        bodyParams.reserve(bodyCount);
+        distanceConstraints.reserve(constraintCount);
+    }
+
+    void clear() {
+        particlePositions.clear();
+        particlePrevPositions.clear();
+        particleVelocities.clear();
+        particleInvMass.clear();
+        particleBodyIds.clear();
+        bodyData.clear();
+        bodyParams.clear();
+        distanceConstraints.clear();
+    }
+};
 
 // Modular GPU Entity Manager for AAA Frame Graph Architecture
 class GPUEntityManager {
@@ -73,6 +108,12 @@ public:
     VkBuffer getSpatialMapBuffer() const { return bufferManager.getSpatialMapBuffer(); }
     VkBuffer getControlParamsBuffer() const { return bufferManager.getControlParamsBuffer(); }
     VkBuffer getSpatialNextBuffer() const { return bufferManager.getSpatialNextBuffer(); }
+    VkBuffer getParticleVelocityBuffer() const { return bufferManager.getParticleVelocityBuffer(); }
+    VkBuffer getParticleInvMassBuffer() const { return bufferManager.getParticleInvMassBuffer(); }
+    VkBuffer getParticleBodyBuffer() const { return bufferManager.getParticleBodyBuffer(); }
+    VkBuffer getBodyDataBuffer() const { return bufferManager.getBodyDataBuffer(); }
+    VkBuffer getBodyParamsBuffer() const { return bufferManager.getBodyParamsBuffer(); }
+    VkBuffer getDistanceConstraintBuffer() const { return bufferManager.getDistanceConstraintBuffer(); }
     
     // Position buffers remain the same
     VkBuffer getPositionBuffer() const { return bufferManager.getPositionBuffer(); }
@@ -94,12 +135,20 @@ public:
     VkDeviceSize getSpatialMapBufferSize() const { return bufferManager.getSpatialMapBufferSize(); }
     VkDeviceSize getControlParamsBufferSize() const { return bufferManager.getControlParamsBufferSize(); }
     VkDeviceSize getSpatialNextBufferSize() const { return bufferManager.getSpatialNextBufferSize(); }
+    VkDeviceSize getParticleVelocityBufferSize() const { return bufferManager.getParticleVelocityBufferSize(); }
+    VkDeviceSize getParticleInvMassBufferSize() const { return bufferManager.getParticleInvMassBufferSize(); }
+    VkDeviceSize getParticleBodyBufferSize() const { return bufferManager.getParticleBodyBufferSize(); }
+    VkDeviceSize getBodyDataBufferSize() const { return bufferManager.getBodyDataBufferSize(); }
+    VkDeviceSize getBodyParamsBufferSize() const { return bufferManager.getBodyParamsBufferSize(); }
+    VkDeviceSize getDistanceConstraintBufferSize() const { return bufferManager.getDistanceConstraintBufferSize(); }
     VkDeviceSize getPositionBufferSize() const { return bufferManager.getPositionBufferSize(); }
     
     
     // Entity state
     uint32_t getEntityCount() const { return activeEntityCount; }
     uint32_t getMaxEntities() const { return bufferManager.getMaxEntities(); }
+    uint32_t getMaxParticles() const { return bufferManager.getMaxParticles(); }
+    uint32_t getMaxConstraints() const { return bufferManager.getMaxConstraints(); }
     bool hasPendingUploads() const { return !stagingEntities.empty(); }
     
     // Descriptor management delegation
@@ -136,6 +185,7 @@ private:
     
     // Staging data - SoA approach
     GPUEntitySoA stagingEntities;
+    GPUSoftBodyStaging stagingSoftBodies;
     uint32_t activeEntityCount = 0;
     
     // Debug: Mapping from GPU buffer index to ECS entity ID

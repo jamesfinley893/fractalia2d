@@ -655,8 +655,56 @@ namespace DescriptorLayoutPresets {
         spatialNextBinding.descriptorCount = 1;
         spatialNextBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
         spatialNextBinding.debugName = "spatialNextBuffer";
+
+        // Binding 10: ParticleVelocityBuffer (per-particle velocities)
+        DescriptorBinding particleVelocityBinding{};
+        particleVelocityBinding.binding = 10;
+        particleVelocityBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        particleVelocityBinding.descriptorCount = 1;
+        particleVelocityBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        particleVelocityBinding.debugName = "particleVelocityBuffer";
+
+        // Binding 11: ParticleInvMassBuffer (per-particle inverse mass)
+        DescriptorBinding particleInvMassBinding{};
+        particleInvMassBinding.binding = 11;
+        particleInvMassBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        particleInvMassBinding.descriptorCount = 1;
+        particleInvMassBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        particleInvMassBinding.debugName = "particleInvMassBuffer";
+
+        // Binding 12: ParticleBodyBuffer (per-particle body index)
+        DescriptorBinding particleBodyBinding{};
+        particleBodyBinding.binding = 12;
+        particleBodyBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        particleBodyBinding.descriptorCount = 1;
+        particleBodyBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        particleBodyBinding.debugName = "particleBodyBuffer";
+
+        // Binding 13: BodyDataBuffer (per-body offsets/counts)
+        DescriptorBinding bodyDataBinding{};
+        bodyDataBinding.binding = 13;
+        bodyDataBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        bodyDataBinding.descriptorCount = 1;
+        bodyDataBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        bodyDataBinding.debugName = "bodyDataBuffer";
+
+        // Binding 14: BodyParamsBuffer (per-body simulation params)
+        DescriptorBinding bodyParamsBinding{};
+        bodyParamsBinding.binding = 14;
+        bodyParamsBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        bodyParamsBinding.descriptorCount = 1;
+        bodyParamsBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        bodyParamsBinding.debugName = "bodyParamsBuffer";
+
+        // Binding 15: DistanceConstraintBuffer (per-constraint data)
+        DescriptorBinding constraintBinding{};
+        constraintBinding.binding = 15;
+        constraintBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        constraintBinding.descriptorCount = 1;
+        constraintBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        constraintBinding.debugName = "distanceConstraintBuffer";
         
-        spec.bindings = {velocityBinding, movementParamsBinding, runtimeStateBinding, positionOutputBinding, currentPosBinding, colorBinding, modelMatrixBinding, spatialMapBinding, controlParamsBinding, spatialNextBinding};
+        spec.bindings = {velocityBinding, movementParamsBinding, runtimeStateBinding, positionOutputBinding, currentPosBinding, colorBinding, modelMatrixBinding, spatialMapBinding, controlParamsBinding, spatialNextBinding, particleVelocityBinding, particleInvMassBinding, particleBodyBinding, bodyDataBinding, bodyParamsBinding, constraintBinding};
         return spec;
     }
 }

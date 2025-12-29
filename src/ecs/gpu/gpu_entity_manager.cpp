@@ -4,6 +4,7 @@
 #include "../../vulkan/resources/core/resource_coordinator.h"
 #include "../../vulkan/core/vulkan_function_loader.h"
 #include "../../vulkan/core/vulkan_utils.h"
+#include "soft_body_constants.h"
 #include <iostream>
 #include <cstring>
 #include <random>
@@ -95,6 +96,7 @@ void GPUEntityManager::cleanup() {
 
 
 void GPUEntityManager::addEntitiesFromECS(const std::vector<flecs::entity>& entities) {
+    stagingSoftBodies.reserve(stagingEntities.size() + entities.size());
     for (const auto& entity : entities) {
         if (activeEntityCount + stagingEntities.size() >= MAX_ENTITIES) {
             std::cerr << "GPUEntityManager: Reached max capacity, stopping entity addition" << std::endl;
@@ -122,6 +124,73 @@ void GPUEntityManager::addEntitiesFromECS(const std::vector<flecs::entity>& enti
                 stagingEntities.controlParams.back() = glm::vec4(0.0f, 0.0f, 1.0f, renderScale);
             }
             entity.set<GPUIndex>({gpuIndex});
+
+            // Build soft body particle data (triangle) for PBD
+            constexpr glm::vec3 kLocalVerts[SoftBodyConstants::kParticlesPerBody] = {
+                glm::vec3(0.0f, -2.0f, 0.0f),
+                glm::vec3(2.0f, 2.0f, 0.0f),
+                glm::vec3(-2.0f, 2.0f, 0.0f)
+            };
+
+            glm::mat4 model = transform->getMatrix();
+            glm::vec3 worldVerts[SoftBodyConstants::kParticlesPerBody];
+            for (uint32_t i = 0; i < SoftBodyConstants::kParticlesPerBody; ++i) {
+                worldVerts[i] = glm::vec3(model * glm::vec4(kLocalVerts[i], 1.0f));
+            }
+
+            uint32_t particleOffset = gpuIndex * SoftBodyConstants::kParticlesPerBody;
+            uint32_t constraintOffset = gpuIndex * SoftBodyConstants::kConstraintsPerBody;
+
+            for (uint32_t i = 0; i < SoftBodyConstants::kParticlesPerBody; ++i) {
+                stagingSoftBodies.particlePositions.emplace_back(worldVerts[i], 1.0f);
+                stagingSoftBodies.particlePrevPositions.emplace_back(worldVerts[i], 1.0f);
+                stagingSoftBodies.particleVelocities.emplace_back(0.0f, 0.0f, 0.0f, 0.0f);
+                stagingSoftBodies.particleInvMass.emplace_back(1.0f);
+                stagingSoftBodies.particleBodyIds.emplace_back(gpuIndex);
+            }
+
+            auto edgeLen = [](const glm::vec3& a, const glm::vec3& b) {
+                return glm::length(a - b);
+            };
+
+            GPUDistanceConstraint c0{
+                particleOffset + 0,
+                particleOffset + 1,
+                edgeLen(worldVerts[0], worldVerts[1]),
+                0.9f
+            };
+            GPUDistanceConstraint c1{
+                particleOffset + 1,
+                particleOffset + 2,
+                edgeLen(worldVerts[1], worldVerts[2]),
+                0.9f
+            };
+            GPUDistanceConstraint c2{
+                particleOffset + 2,
+                particleOffset + 0,
+                edgeLen(worldVerts[2], worldVerts[0]),
+                0.9f
+            };
+            stagingSoftBodies.distanceConstraints.emplace_back(c0);
+            stagingSoftBodies.distanceConstraints.emplace_back(c1);
+            stagingSoftBodies.distanceConstraints.emplace_back(c2);
+
+            float restArea = 0.5f * ((worldVerts[1].x - worldVerts[0].x) * (worldVerts[2].y - worldVerts[0].y) -
+                                     (worldVerts[1].y - worldVerts[0].y) * (worldVerts[2].x - worldVerts[0].x));
+            restArea = std::abs(restArea);
+
+            stagingSoftBodies.bodyData.emplace_back(
+                particleOffset,
+                SoftBodyConstants::kParticlesPerBody,
+                constraintOffset,
+                SoftBodyConstants::kConstraintsPerBody
+            );
+            stagingSoftBodies.bodyParams.emplace_back(
+                0.9f,   // distance stiffness
+                0.6f,   // area stiffness
+                0.995f, // damping
+                restArea
+            );
         }
     }
 }
@@ -156,37 +225,35 @@ void GPUEntityManager::uploadPendingEntities() {
     bufferManager.uploadModelMatrixData(stagingEntities.modelMatrices.data(), modelMatrixSize, modelMatrixOffset);
     bufferManager.uploadControlParamsData(stagingEntities.controlParams.data(), controlParamsSize, controlParamsOffset);
     
-    // Initialize position buffers with spawn positions
-    std::vector<glm::vec4> initialPositions;
-    initialPositions.reserve(entityCount);
-    
-    for (size_t i = 0; i < stagingEntities.modelMatrices.size(); ++i) {
-        const auto& modelMatrix = stagingEntities.modelMatrices[i];
-        // Extract position from modelMatrix (4th column contains translation)
-        glm::vec3 spawnPosition = glm::vec3(modelMatrix[3]);
-        initialPositions.emplace_back(spawnPosition, 1.0f);
-        
-        // Debug first few positions to verify data
-        if (i < 5) {
-            std::cout << "Entity " << i << " spawn position: (" 
-                      << spawnPosition.x << ", " << spawnPosition.y << ", " << spawnPosition.z << ")" << std::endl;
-        }
-    }
-    
-    // Initialize ALL position buffers so graphics and physics can read from any of them
-    VkDeviceSize positionUploadSize = initialPositions.size() * sizeof(glm::vec4);
-    VkDeviceSize positionOffset = activeEntityCount * sizeof(glm::vec4);
-    
-    bufferManager.uploadPositionDataToAllBuffers(initialPositions.data(), positionUploadSize, positionOffset);
+    // Initialize particle buffers for PBD soft bodies
+    VkDeviceSize particleOffset = activeEntityCount * SoftBodyConstants::kParticlesPerBody * sizeof(glm::vec4);
+    VkDeviceSize particleCount = stagingSoftBodies.particlePositions.size();
+    VkDeviceSize particleSize = particleCount * sizeof(glm::vec4);
+
+    bufferManager.uploadPositionDataToAllBuffers(stagingSoftBodies.particlePositions.data(), particleSize, particleOffset);
+    bufferManager.uploadParticleVelocityData(stagingSoftBodies.particleVelocities.data(), particleCount * sizeof(glm::vec4), particleOffset);
+    bufferManager.uploadParticleInvMassData(stagingSoftBodies.particleInvMass.data(), particleCount * sizeof(float), activeEntityCount * SoftBodyConstants::kParticlesPerBody * sizeof(float));
+    bufferManager.uploadParticleBodyData(stagingSoftBodies.particleBodyIds.data(), particleCount * sizeof(uint32_t), activeEntityCount * SoftBodyConstants::kParticlesPerBody * sizeof(uint32_t));
+
+    VkDeviceSize bodyOffset = activeEntityCount * sizeof(glm::uvec4);
+    VkDeviceSize bodyParamsOffset = activeEntityCount * sizeof(glm::vec4);
+    VkDeviceSize bodyCount = stagingSoftBodies.bodyData.size();
+    bufferManager.uploadBodyData(stagingSoftBodies.bodyData.data(), bodyCount * sizeof(glm::uvec4), bodyOffset);
+    bufferManager.uploadBodyParamsData(stagingSoftBodies.bodyParams.data(), bodyCount * sizeof(glm::vec4), bodyParamsOffset);
+
+    VkDeviceSize constraintOffset = activeEntityCount * SoftBodyConstants::kConstraintsPerBody * sizeof(GPUDistanceConstraint);
+    bufferManager.uploadDistanceConstraintData(stagingSoftBodies.distanceConstraints.data(), stagingSoftBodies.distanceConstraints.size() * sizeof(GPUDistanceConstraint), constraintOffset);
     
     activeEntityCount += entityCount;
     stagingEntities.clear();
+    stagingSoftBodies.clear();
     
     std::cout << "GPUEntityManager: Uploaded " << entityCount << " entities to GPU-local memory (SoA), total: " << activeEntityCount << std::endl;
 }
 
 void GPUEntityManager::clearAllEntities() {
     stagingEntities.clear();
+    stagingSoftBodies.clear();
     activeEntityCount = 0;
 }
 

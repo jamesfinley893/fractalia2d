@@ -2,6 +2,14 @@
 
 #include "buffer_base.h"
 #include <glm/glm.hpp>
+#include <cstdint>
+
+struct GPUDistanceConstraint {
+    uint32_t a;
+    uint32_t b;
+    float restLength;
+    float stiffness;
+};
 
 /**
  * Specialized buffer classes following Single Responsibility Principle
@@ -124,4 +132,82 @@ public:
 
 protected:
     const char* getBufferTypeName() const override { return "ControlParams"; }
+};
+
+// SINGLE responsibility: particle velocity data management (per particle)
+class ParticleVelocityBuffer : public BufferBase {
+public:
+    using BufferBase::initialize;
+
+    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxParticles) {
+        return BufferBase::initialize(context, resourceCoordinator, maxParticles, sizeof(glm::vec4), 0);
+    }
+
+protected:
+    const char* getBufferTypeName() const override { return "ParticleVelocity"; }
+};
+
+// SINGLE responsibility: particle inverse mass data management (per particle)
+class ParticleInvMassBuffer : public BufferBase {
+public:
+    using BufferBase::initialize;
+
+    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxParticles) {
+        return BufferBase::initialize(context, resourceCoordinator, maxParticles, sizeof(float), 0);
+    }
+
+protected:
+    const char* getBufferTypeName() const override { return "ParticleInvMass"; }
+};
+
+// SINGLE responsibility: particle→body mapping data management (per particle)
+class ParticleBodyBuffer : public BufferBase {
+public:
+    using BufferBase::initialize;
+
+    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxParticles) {
+        return BufferBase::initialize(context, resourceCoordinator, maxParticles, sizeof(uint32_t), 0);
+    }
+
+protected:
+    const char* getBufferTypeName() const override { return "ParticleBody"; }
+};
+
+// SINGLE responsibility: body metadata (offsets/counts)
+class BodyDataBuffer : public BufferBase {
+public:
+    using BufferBase::initialize;
+
+    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxBodies) {
+        return BufferBase::initialize(context, resourceCoordinator, maxBodies, sizeof(glm::uvec4), 0);
+    }
+
+protected:
+    const char* getBufferTypeName() const override { return "BodyData"; }
+};
+
+// SINGLE responsibility: body simulation parameters
+class BodyParamsBuffer : public BufferBase {
+public:
+    using BufferBase::initialize;
+
+    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxBodies) {
+        return BufferBase::initialize(context, resourceCoordinator, maxBodies, sizeof(glm::vec4), 0);
+    }
+
+protected:
+    const char* getBufferTypeName() const override { return "BodyParams"; }
+};
+
+// SINGLE responsibility: distance constraint data management
+class DistanceConstraintBuffer : public BufferBase {
+public:
+    using BufferBase::initialize;
+
+    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxConstraints) {
+        return BufferBase::initialize(context, resourceCoordinator, maxConstraints, sizeof(GPUDistanceConstraint), 0);
+    }
+
+protected:
+    const char* getBufferTypeName() const override { return "DistanceConstraint"; }
 };
