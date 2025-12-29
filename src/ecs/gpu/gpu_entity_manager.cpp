@@ -112,6 +112,11 @@ void GPUEntityManager::addEntitiesFromECS(const std::vector<flecs::entity>& enti
                 gpuIndexToECSEntity.resize(gpuIndex + 1);
             }
             gpuIndexToECSEntity[gpuIndex] = entity;
+
+            if (entity.has<Player>()) {
+                stagingEntities.velocities.back().w = 1.0f; // Mark as manually controlled
+            }
+            entity.set<GPUIndex>({gpuIndex});
         }
     }
 }
@@ -184,4 +189,23 @@ flecs::entity GPUEntityManager::getECSEntityFromGPUIndex(uint32_t gpuIndex) cons
         return gpuIndexToECSEntity[gpuIndex];
     }
     return flecs::entity{}; // Invalid entity
+}
+
+bool GPUEntityManager::updateVelocityForEntity(uint32_t gpuIndex, const glm::vec2& velocity, float damping, bool manualControl) {
+    if (gpuIndex >= activeEntityCount) {
+        return false;
+    }
+
+    glm::vec4 velocityData{velocity.x, velocity.y, damping, manualControl ? 1.0f : 0.0f};
+    VkDeviceSize offset = static_cast<VkDeviceSize>(gpuIndex) * sizeof(glm::vec4);
+    return bufferManager.uploadVelocityData(&velocityData, sizeof(velocityData), offset);
+}
+
+bool GPUEntityManager::updateMovementParamsForEntity(uint32_t gpuIndex, const glm::vec4& params) {
+    if (gpuIndex >= activeEntityCount) {
+        return false;
+    }
+
+    VkDeviceSize offset = static_cast<VkDeviceSize>(gpuIndex) * sizeof(glm::vec4);
+    return bufferManager.uploadMovementParamsData(&params, sizeof(params), offset);
 }

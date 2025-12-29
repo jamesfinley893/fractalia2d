@@ -95,6 +95,16 @@ struct MovementPattern {
     mutable bool initialized{false};
 };
 
+// Player control marker with tunable speed
+struct Player {
+    float speed{1.5f};
+};
+
+// GPU index mapping for per-entity GPU updates
+struct GPUIndex {
+    uint32_t index{0};
+};
+
 
 // Input system components for ECS-based input handling
 struct KeyboardInput {

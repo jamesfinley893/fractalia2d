@@ -53,6 +53,20 @@ void main() {
     float timeOffset = entityMovementParams.w;
     float entityTime = pc.time + timeOffset;
     
+    // Manual-control marker: use a fixed, distinctive color
+    if (timeOffset < -900.0) {
+        color = vec3(0.1, 0.9, 1.0);
+        float rot = entityTime * 0.1;
+        mat4 rotationMatrix = mat4(
+            cos(rot),  sin(rot), 0, 0,
+           -sin(rot),  cos(rot), 0, 0,
+            0,         0,        1, 0,
+            worldPos,             1
+        );
+        gl_Position = ubo.proj * ubo.view * rotationMatrix * vec4(inPos * 1.8, 1.0);
+        return;
+    }
+
     // Calculate dynamic color based on movement parameters with strong per-entity individualization
     // Use instance index to create much stronger base color variation per entity
     float entityBaseHue = mod(float(gl_InstanceIndex) * 0.618034, 1.0); // Golden ratio for good distribution

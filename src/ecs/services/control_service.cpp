@@ -105,6 +105,9 @@ void GameControlService::processFrame(float deltaTime) {
     
     // Handle input for control actions
     handleInput();
+
+    // Update player movement from input (GPU-driven simulation)
+    updatePlayerMovement();
     
     // Execute any pending actions
     executeActions();
@@ -413,6 +416,34 @@ void GameControlService::integrateWithInputService() {
         "Zoom camera with mouse wheel",
         {InputBinding(InputBinding::InputType::MOUSE_WHEEL_Y, 0)}
     });
+
+    inputService->registerAction({
+        "player_move_left",
+        InputActionType::DIGITAL,
+        "Move player left",
+        {InputBinding(InputBinding::InputType::KEYBOARD_KEY, SDL_SCANCODE_LEFT)}
+    });
+    
+    inputService->registerAction({
+        "player_move_right",
+        InputActionType::DIGITAL,
+        "Move player right",
+        {InputBinding(InputBinding::InputType::KEYBOARD_KEY, SDL_SCANCODE_RIGHT)}
+    });
+    
+    inputService->registerAction({
+        "player_move_up",
+        InputActionType::DIGITAL,
+        "Move player up",
+        {InputBinding(InputBinding::InputType::KEYBOARD_KEY, SDL_SCANCODE_UP)}
+    });
+    
+    inputService->registerAction({
+        "player_move_down",
+        InputActionType::DIGITAL,
+        "Move player down",
+        {InputBinding(InputBinding::InputType::KEYBOARD_KEY, SDL_SCANCODE_DOWN)}
+    });
 }
 
 void GameControlService::integrateWithCameraService() {
@@ -632,6 +663,44 @@ void GameControlService::handleCameraControls() {
     }
 }
 
+void GameControlService::updatePlayerMovement() {
+    if (!inputService || !renderer || !world) {
+        return;
+    }
+
+    auto* gpuEntityManager = renderer->getGPUEntityManager();
+    if (!gpuEntityManager) {
+        return;
+    }
+
+    glm::vec2 direction(0.0f);
+    if (inputService->isKeyDown(SDL_SCANCODE_LEFT)) {
+        direction.x -= 1.0f;
+    }
+    if (inputService->isKeyDown(SDL_SCANCODE_RIGHT)) {
+        direction.x += 1.0f;
+    }
+    if (inputService->isKeyDown(SDL_SCANCODE_UP)) {
+        direction.y += 1.0f;
+    }
+    if (inputService->isKeyDown(SDL_SCANCODE_DOWN)) {
+        direction.y -= 1.0f;
+    }
+
+    if (direction.x != 0.0f || direction.y != 0.0f) {
+        direction = glm::normalize(direction);
+    }
+
+    world->each([&](flecs::entity e, Player& player, GPUIndex& gpuIndex) {
+        glm::vec2 velocity = direction * player.speed;
+        gpuEntityManager->updateVelocityForEntity(gpuIndex.index, velocity, 1.0f, true);
+        gpuEntityManager->updateMovementParamsForEntity(
+            gpuIndex.index,
+            glm::vec4(velocity.x, velocity.y, 0.0f, -999.0f)
+        );
+    });
+}
+
 void GameControlService::resetCamera() {
     if (!cameraService) return;
     
@@ -740,4 +809,3 @@ void GameControlService::debugEntityAtPosition(const glm::vec2& worldPos) {
         std::cout << "No entity found at world position (" << worldPos.x << ", " << worldPos.y << ")" << std::endl;
     }
 }
-

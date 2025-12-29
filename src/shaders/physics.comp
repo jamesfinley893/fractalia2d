@@ -17,6 +17,10 @@ layout(std430, binding = 0) buffer VelocityBuffer {
     vec4 velocities[];  // R/W: velocity.xy, damping, reserved
 } velocityBuffer;
 
+layout(std430, binding = 1) buffer MovementParamsBuffer {
+    vec4 movementParams[];  // For player control override
+} movementParamsBuffer;
+
 layout(std430, binding = 2) buffer RuntimeStateBuffer {
     vec4 runtimeStates[];  // R/W: totalTime, reserved, stateTimer, initialized
 } runtimeStateBuffer;
@@ -208,12 +212,19 @@ void main() {
     // Load entity data from SoA buffers - better cache locality
     vec4 velocity = velocityBuffer.velocities[entityIndex];
     vec4 runtimeState = runtimeStateBuffer.runtimeStates[entityIndex];
+    vec4 movementParams = movementParamsBuffer.movementParams[entityIndex];
     
     float initialized = runtimeState.w; // initialized flag is in .w
     
     // Extract velocity and damping
     vec2 vel = velocity.xy;
     float damping = velocity.z;
+    
+    // Player override: movementParams.w marks manual control; xy holds desired velocity
+    if (movementParams.w < -900.0) {
+        vel = movementParams.xy;
+        damping = 1.0;
+    }
     
     // SIMPLIFIED: Read position directly from output buffer, integrate velocity
     vec3 currentPosition = outPositions.positions[entityIndex].xyz;

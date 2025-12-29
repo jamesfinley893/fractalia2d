@@ -94,7 +94,13 @@ void main() {
     
     // Load entity data from SoA buffers - much better cache locality
     vec4 velocity = velocityBuffer.velocities[entityIndex];
+    
     vec4 movementParams = movementParamsBuffer.movementParams[entityIndex];
+    
+    // Skip GPU-driven random walk for manually controlled entities
+    if (velocity.w > 0.5 || movementParams.w < -900.0) {
+        return;
+    }
     vec4 runtimeState = runtimeStateBuffer.runtimeStates[entityIndex];
     
     // Extract movement parameters

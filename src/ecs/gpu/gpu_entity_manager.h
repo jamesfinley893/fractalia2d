@@ -105,6 +105,12 @@ public:
     // Debug: Get ECS entity ID from GPU buffer index
     flecs::entity getECSEntityFromGPUIndex(uint32_t gpuIndex) const;
 
+    // Update velocity for a specific GPU entity
+    bool updateVelocityForEntity(uint32_t gpuIndex, const glm::vec2& velocity, float damping, bool manualControl);
+
+    // Update movement params for a specific GPU entity
+    bool updateMovementParamsForEntity(uint32_t gpuIndex, const glm::vec4& params);
+
 private:
     static constexpr uint32_t MAX_ENTITIES = 131072; // 128k entities max
     

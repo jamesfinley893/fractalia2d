@@ -166,6 +166,28 @@ int main(int argc, char* argv[]) {
     gpuEntityManager->uploadPendingEntities();
     
     DEBUG_LOG("Created " << swarmEntities.size() << " GPU entities!");
+
+    flecs::entity playerEntity = entityFactory.createExactEntity(glm::vec3(0.0f, 0.0f, 0.0f));
+    playerEntity.set<Player>({2.0f});
+    if (auto* pattern = playerEntity.get_mut<MovementPattern>()) {
+        pattern->timeOffset = -999.0f;
+    }
+    if (auto* renderable = playerEntity.get_mut<Renderable>()) {
+        renderable->color = glm::vec4(1.0f, 0.2f, 0.1f, 1.0f);
+        renderable->markDirty();
+    }
+    if (auto* transform = playerEntity.get_mut<Transform>()) {
+        transform->setScale(glm::vec3(2.0f, 2.0f, 1.0f));
+    }
+    gpuEntityManager->addEntitiesFromECS({playerEntity});
+    gpuEntityManager->uploadPendingEntities();
+    if (auto* gpuIndex = playerEntity.get<GPUIndex>()) {
+        gpuEntityManager->updateMovementParamsForEntity(
+            gpuIndex->index,
+            glm::vec4(1.0f, 1.0f, 0.0f, -999.0f)
+        );
+        gpuEntityManager->updateVelocityForEntity(gpuIndex->index, glm::vec2(0.0f), 1.0f, true);
+    }
     DEBUG_LOG("Total services active: " << ServiceLocator::instance().getServiceCount());
     
     bool running = true;

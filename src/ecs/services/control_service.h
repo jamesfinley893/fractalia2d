@@ -141,6 +141,7 @@ private:
     void updateActionCooldowns();
     bool checkActionCooldown(const std::string& actionName) const;
     void executePendingRequests();
+    void updatePlayerMovement();
     
     // Service integration helpers
     void integrateWithInputService();
