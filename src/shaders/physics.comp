@@ -91,11 +91,11 @@ void updateSpatialMap(uint entityIndex, vec2 position) {
 
 // Collision detection configuration
 const uint MAX_ENTITIES_PER_CELL = 64;    // Maximum entities to check per cell (much higher)
-const float TRIANGLE_RADIUS = 1.5;        // Bounding circle radius for triangle (larger)
-const float MIN_SEPARATION = 0.2;         // Minimum separation distance (larger)
+const float TRIANGLE_RADIUS = 2.8284271;  // Bounding circle radius for triangle mesh
+const float MIN_SEPARATION = 0.0;         // Additional gap between entities
 const float RESTITUTION = 0.35;           // 0 = inelastic, 1 = elastic
 const float FRICTION = 0.2;               // Tangential friction
-const float COLLISION_EPS = 0.01;         // Enforce a small separation gap
+const float COLLISION_EPS = 0.001;        // Small separation gap to prevent overlap
 
 // Triangle vertices relative to entity center
 const vec2 TRIANGLE_VERTICES[3] = vec2[](
