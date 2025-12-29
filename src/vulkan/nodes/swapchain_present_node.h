@@ -24,7 +24,7 @@ public:
     
     // Node lifecycle - standardized pattern
     bool initializeNode(const FrameGraph& frameGraph) override;
-    void prepareFrame(uint32_t frameIndex, float time, float deltaTime) override;
+    void prepareFrame(const FrameContext& frameContext) override;
     void releaseFrame(uint32_t frameIndex) override;
     
     // Queue requirements - presentation happens on graphics queue

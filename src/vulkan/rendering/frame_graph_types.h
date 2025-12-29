@@ -40,3 +40,11 @@ struct ResourceDependency {
     ResourceAccess access;
     PipelineStage stage;
 };
+
+// Frame-scoped context passed to nodes
+struct FrameContext {
+    uint32_t frameIndex = 0;
+    float time = 0.0f;
+    float deltaTime = 0.0f;
+    uint32_t globalFrame = 0;
+};

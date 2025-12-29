@@ -18,41 +18,28 @@
 #include <stdexcept>
 #include <memory>
 
-EntityGraphicsNode::EntityGraphicsNode(
-    FrameGraphTypes::ResourceId positionBuffer,
-    FrameGraphTypes::ResourceId movementParamsBuffer,
-    FrameGraphTypes::ResourceId colorTarget,
-    GraphicsPipelineManager* graphicsManager,
-    VulkanSwapchain* swapchain,
-    ResourceCoordinator* resourceCoordinator,
-    GPUEntityManager* gpuEntityManager
-) : positionBufferId(positionBuffer)
-  , movementParamsBufferId(movementParamsBuffer)
-  , colorTargetId(colorTarget)
-  , graphicsManager(graphicsManager)
-  , swapchain(swapchain)
-  , resourceCoordinator(resourceCoordinator)
-  , gpuEntityManager(gpuEntityManager) {
+EntityGraphicsNode::EntityGraphicsNode(const Data& data)
+    : data(data) {
     
     // Validate dependencies during construction for fail-fast behavior
-    if (!graphicsManager) {
+    if (!this->data.graphicsManager) {
         throw std::invalid_argument("EntityGraphicsNode: graphicsManager cannot be null");
     }
-    if (!swapchain) {
+    if (!this->data.swapchain) {
         throw std::invalid_argument("EntityGraphicsNode: swapchain cannot be null");
     }
-    if (!resourceCoordinator) {
+    if (!this->data.resourceCoordinator) {
         throw std::invalid_argument("EntityGraphicsNode: resourceCoordinator cannot be null");
     }
-    if (!gpuEntityManager) {
+    if (!this->data.gpuEntityManager) {
         throw std::invalid_argument("EntityGraphicsNode: gpuEntityManager cannot be null");
     }
 }
 
 std::vector<ResourceDependency> EntityGraphicsNode::getInputs() const {
     return {
-        {positionBufferId, ResourceAccess::Read, PipelineStage::VertexShader},
-        {movementParamsBufferId, ResourceAccess::Read, PipelineStage::VertexShader},
+        {data.positionBufferId, ResourceAccess::Read, PipelineStage::VertexShader},
+        {data.movementParamsBufferId, ResourceAccess::Read, PipelineStage::VertexShader},
     };
 }
 
@@ -64,17 +51,17 @@ std::vector<ResourceDependency> EntityGraphicsNode::getOutputs() const {
 }
 
 bool EntityGraphicsNode::ensurePipeline() {
-    if (!graphicsManager || !swapchain) {
+    if (!data.graphicsManager || !data.swapchain) {
         return false;
     }
 
-    VkFormat currentFormat = swapchain->getImageFormat();
+    VkFormat currentFormat = data.swapchain->getImageFormat();
     if (currentFormat != cachedSwapchainFormat) {
         pipelineDirty = true;
     }
 
     auto layoutSpec = DescriptorLayoutPresets::createEntityGraphicsLayout();
-    VkDescriptorSetLayout descriptorLayout = graphicsManager->getLayoutManager()->getLayout(layoutSpec);
+    VkDescriptorSetLayout descriptorLayout = data.graphicsManager->getLayoutManager()->getLayout(layoutSpec);
     if (descriptorLayout == VK_NULL_HANDLE) {
         return false;
     }
@@ -86,7 +73,7 @@ bool EntityGraphicsNode::ensurePipeline() {
         return cachedPipeline != VK_NULL_HANDLE && cachedPipelineLayout != VK_NULL_HANDLE && cachedRenderPass != VK_NULL_HANDLE;
     }
 
-    VkRenderPass renderPass = graphicsManager->createRenderPass(
+    VkRenderPass renderPass = data.graphicsManager->createRenderPass(
         currentFormat,
         VK_FORMAT_UNDEFINED,
         VK_SAMPLE_COUNT_2_BIT,
@@ -99,8 +86,8 @@ bool EntityGraphicsNode::ensurePipeline() {
     GraphicsPipelineState pipelineState = GraphicsPipelinePresets::createEntityRenderingState(
         renderPass, descriptorLayout);
 
-    VkPipeline pipeline = graphicsManager->getPipeline(pipelineState);
-    VkPipelineLayout pipelineLayout = graphicsManager->getPipelineLayout(pipelineState);
+    VkPipeline pipeline = data.graphicsManager->getPipeline(pipelineState);
+    VkPipelineLayout pipelineLayout = data.graphicsManager->getPipelineLayout(pipelineState);
     if (pipeline == VK_NULL_HANDLE || pipelineLayout == VK_NULL_HANDLE) {
         return false;
     }
@@ -117,12 +104,12 @@ bool EntityGraphicsNode::ensurePipeline() {
 void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph& frameGraph) {
     
     // Validate dependencies are still valid
-    if (!graphicsManager || !swapchain || !resourceCoordinator || !gpuEntityManager) {
+    if (!data.graphicsManager || !data.swapchain || !data.resourceCoordinator || !data.gpuEntityManager) {
         std::cerr << "EntityGraphicsNode: Critical error - dependencies became null during execution" << std::endl;
         return;
     }
     
-    const uint32_t entityCount = gpuEntityManager->getEntityCount();
+    const uint32_t entityCount = data.gpuEntityManager->getEntityCount();
     
     if (entityCount == 0) {
         FRAME_GRAPH_DEBUG_LOG_THROTTLED(noEntitiesCounter, 1800, "EntityGraphicsNode: No entities to render");
@@ -136,13 +123,16 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
         return;
     }
     
+    // Update uniform buffer with camera matrices (now handled by EntityDescriptorManager)
+    updateUniformBuffer();
+    
     if (!ensurePipeline()) {
         std::cerr << "EntityGraphicsNode: Failed to ensure graphics pipeline" << std::endl;
         return;
     }
     
     // Validate swapchain state before accessing framebuffers
-    const auto& framebuffers = swapchain->getFramebuffers();
+    const auto& framebuffers = data.swapchain->getFramebuffers();
     if (imageIndex >= framebuffers.size()) {
         std::cerr << "EntityGraphicsNode: Invalid imageIndex " << imageIndex 
                   << " >= framebuffer count " << framebuffers.size() << std::endl;
@@ -155,7 +145,7 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
     renderPassInfo.renderPass = cachedRenderPass;
     renderPassInfo.framebuffer = framebuffers[imageIndex];
     renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.renderArea.extent = swapchain->getExtent();
+    renderPassInfo.renderArea.extent = data.swapchain->getExtent();
 
     // Clear values: MSAA color, resolve color (no depth)
     std::array<VkClearValue, 2> clearValues{};
@@ -173,15 +163,15 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = static_cast<float>(swapchain->getExtent().width);
-    viewport.height = static_cast<float>(swapchain->getExtent().height);
+    viewport.width = static_cast<float>(data.swapchain->getExtent().width);
+    viewport.height = static_cast<float>(data.swapchain->getExtent().height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
     vk.vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
     VkRect2D scissor{};
     scissor.offset = {0, 0};
-    scissor.extent = swapchain->getExtent();
+    scissor.extent = data.swapchain->getExtent();
     vk.vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
     // Entity count already retrieved above
@@ -194,7 +184,7 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
     );
     
     // Bind single descriptor set with unified layout (uniform + storage buffers)
-    VkDescriptorSet entityDescriptorSet = gpuEntityManager->getDescriptorManager().getGraphicsDescriptorSet(currentFrameIndex);
+    VkDescriptorSet entityDescriptorSet = data.gpuEntityManager->getDescriptorManager().getGraphicsDescriptorSet(currentFrameIndex);
     
     if (entityDescriptorSet != VK_NULL_HANDLE) {
         vk.vkCmdBindDescriptorSets(
@@ -232,25 +222,25 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
     if (entityCount > 0) {
         // Bind vertex buffer: only geometry vertices (SoA uses storage buffers for entity data)
         VkBuffer vertexBuffers[] = {
-            resourceCoordinator->getGraphicsManager()->getVertexBuffer()      // Vertex positions for triangle geometry
+            data.resourceCoordinator->getGraphicsManager()->getVertexBuffer()      // Vertex positions for triangle geometry
         };
         VkDeviceSize offsets[] = {0};
         vk.vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
         
         // Bind index buffer for triangle geometry
         vk.vkCmdBindIndexBuffer(
-            commandBuffer, resourceCoordinator->getGraphicsManager()->getIndexBuffer(), 0, VK_INDEX_TYPE_UINT16);
+            commandBuffer, data.resourceCoordinator->getGraphicsManager()->getIndexBuffer(), 0, VK_INDEX_TYPE_UINT16);
         
         // Draw indexed instances: all entities with triangle geometry
         vk.vkCmdDrawIndexed(
             commandBuffer, 
-            resourceCoordinator->getGraphicsManager()->getIndexCount(),  // Number of indices per triangle
+            data.resourceCoordinator->getGraphicsManager()->getIndexCount(),  // Number of indices per triangle
             entityCount,                      // Number of instances (entities)
             0, 0, 0                          // Index/vertex/instance offsets
         );
         
         // Debug: confirm draw call (thread-safe)
-        FRAME_GRAPH_DEBUG_LOG_THROTTLED(drawCounter, 1800, "EntityGraphicsNode: Drew " << entityCount << " entities with " << resourceCoordinator->getGraphicsManager()->getIndexCount() << " indices per triangle");
+        FRAME_GRAPH_DEBUG_LOG_THROTTLED(drawCounter, 1800, "EntityGraphicsNode: Drew " << entityCount << " entities with " << data.resourceCoordinator->getGraphicsManager()->getIndexCount() << " indices per triangle");
     }
 
     // End render pass
@@ -258,7 +248,7 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
 }
 
 void EntityGraphicsNode::updateUniformBuffer() {
-    if (!resourceCoordinator) return;
+    if (!data.resourceCoordinator) return;
     
     // Check if uniform buffer needs updating for this frame index
     bool needsUpdate = uniformBufferDirty || (lastUpdatedFrameIndex != currentFrameIndex);
@@ -298,14 +288,14 @@ void EntityGraphicsNode::updateUniformBuffer() {
     
     // Only update if dirty, frame changed, or matrices changed
     if (needsUpdate || matricesChanged) {
-        auto uniformBuffers = resourceCoordinator->getGraphicsManager()->getUniformBuffersMapped();
+        auto uniformBuffers = data.resourceCoordinator->getGraphicsManager()->getUniformBuffersMapped();
         
         // Auto-recreate uniform buffers if they were destroyed (e.g., during resize)
         if (uniformBuffers.empty()) {
             std::cout << "EntityGraphicsNode: Uniform buffers missing, attempting to recreate..." << std::endl;
-            if (resourceCoordinator->getGraphicsManager()->createAllGraphicsResources()) {
+            if (data.resourceCoordinator->getGraphicsManager()->createAllGraphicsResources()) {
                 std::cout << "EntityGraphicsNode: Successfully recreated graphics resources" << std::endl;
-                uniformBuffers = resourceCoordinator->getGraphicsManager()->getUniformBuffersMapped();
+                uniformBuffers = data.resourceCoordinator->getGraphicsManager()->getUniformBuffersMapped();
             } else {
                 std::cerr << "EntityGraphicsNode: CRITICAL ERROR: Failed to recreate graphics resources!" << std::endl;
                 return;
@@ -336,33 +326,33 @@ void EntityGraphicsNode::updateUniformBuffer() {
 // Node lifecycle implementation
 bool EntityGraphicsNode::initializeNode(const FrameGraph& frameGraph) {
     // One-time initialization - validate dependencies
-    if (!graphicsManager) {
+    if (!data.graphicsManager) {
         std::cerr << "EntityGraphicsNode: GraphicsPipelineManager is null" << std::endl;
         return false;
     }
-    if (!swapchain) {
+    if (!data.swapchain) {
         std::cerr << "EntityGraphicsNode: VulkanSwapchain is null" << std::endl;
         return false;
     }
-    if (!resourceCoordinator) {
+    if (!data.resourceCoordinator) {
         std::cerr << "EntityGraphicsNode: ResourceCoordinator is null" << std::endl;
         return false;
     }
-    if (!gpuEntityManager) {
+    if (!data.gpuEntityManager) {
         std::cerr << "EntityGraphicsNode: GPUEntityManager is null" << std::endl;
         return false;
     }
     return ensurePipeline();
 }
 
-void EntityGraphicsNode::prepareFrame(uint32_t frameIndex, float time, float deltaTime) {
+void EntityGraphicsNode::prepareFrame(const FrameContext& frameContext) {
     // Store timing data
-    frameTime = time;
-    frameDeltaTime = deltaTime;
-    currentFrameIndex = frameIndex;
+    frameTime = frameContext.time;
+    frameDeltaTime = frameContext.deltaTime;
+    currentFrameIndex = frameContext.frameIndex;
     
     // Check if uniform buffer needs updating
-    if (uniformBufferDirty || lastUpdatedFrameIndex != frameIndex) {
+    if (uniformBufferDirty || lastUpdatedFrameIndex != frameContext.frameIndex) {
         updateUniformBuffer();
     }
 }

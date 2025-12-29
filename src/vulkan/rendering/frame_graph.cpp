@@ -368,7 +368,8 @@ void FrameGraph::executeNodesInOrder(uint32_t frameIndex, float time, float delt
         auto& node = it->second;
         
         // Prepare frame with new standardized lifecycle
-        node->prepareFrame(frameIndex, time, deltaTime);
+        FrameContext frameContext{frameIndex, time, deltaTime, globalFrame};
+        node->prepareFrame(frameContext);
         
         VkCommandBuffer cmdBuffer = node->needsComputeQueue() ? currentComputeCmd : currentGraphicsCmd;
         
@@ -403,7 +404,8 @@ bool FrameGraph::executeWithTimeoutMonitoring(uint32_t frameIndex, float time, f
         }
         
         // Prepare frame with new standardized lifecycle
-        node->prepareFrame(frameIndex, time, deltaTime);
+        FrameContext frameContext{frameIndex, time, deltaTime, globalFrame};
+        node->prepareFrame(frameContext);
         
         VkCommandBuffer cmdBuffer = node->needsComputeQueue() ? currentComputeCmd : currentGraphicsCmd;
         

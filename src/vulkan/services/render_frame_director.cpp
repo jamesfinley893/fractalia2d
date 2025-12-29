@@ -163,15 +163,16 @@ void RenderFrameDirector::setupFrameGraph(uint32_t imageIndex) {
         
         // ELEGANT SOLUTION: Pass a dynamic swapchain image reference
         // Nodes will resolve the actual resource ID at execution time
-        graphicsNodeId = frameGraph->addNode<EntityGraphicsNode>(
+        EntityGraphicsNode::Data graphicsData{
             positionBufferId,
             movementParamsBufferId,
-            0, // Placeholder - will be resolved dynamically
+            0,
             pipelineSystem->getGraphicsManager(),
             swapchain,
             resourceCoordinator,
             gpuEntityManager
-        );
+        };
+        graphicsNodeId = frameGraph->addNode<EntityGraphicsNode>(graphicsData);
         
         presentNodeId = frameGraph->addNode<SwapchainPresentNode>(
             0, // Placeholder - will be resolved dynamically  

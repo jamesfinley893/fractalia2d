@@ -329,14 +329,14 @@ bool EntityComputeNode::initializeNode(const FrameGraph& frameGraph) {
     return ensurePipeline();
 }
 
-void EntityComputeNode::prepareFrame(uint32_t frameIndex, float time, float deltaTime) {
+void EntityComputeNode::prepareFrame(const FrameContext& frameContext) {
     // Store timing data for execution
-    currentTime = time;
-    currentDeltaTime = deltaTime;
+    currentTime = frameContext.time;
+    currentDeltaTime = frameContext.deltaTime;
     
     // Update push constants with timing data - frame counter will be set in execute()
-    pushConstants.time = time;
-    pushConstants.deltaTime = deltaTime;
+    pushConstants.time = frameContext.time;
+    pushConstants.deltaTime = frameContext.deltaTime;
 }
 
 void EntityComputeNode::releaseFrame(uint32_t frameIndex) {

@@ -24,8 +24,8 @@ public:
     
     // Node lifecycle - standardized pattern for all nodes
     virtual bool initializeNode(const FrameGraph& frameGraph) { return true; }  // One-time setup
-    virtual void prepareFrame(uint32_t frameIndex, float time, float deltaTime) {} // Per-frame preparation with timing
-    virtual void releaseFrame(uint32_t frameIndex) {}                           // Per-frame cleanup
+    virtual void prepareFrame(const FrameContext& frameContext) {} // Per-frame preparation with timing
+    virtual void releaseFrame(uint32_t frameIndex) {}              // Per-frame cleanup
     
     // Execution
     virtual void execute(VkCommandBuffer commandBuffer, const FrameGraph& frameGraph) = 0;

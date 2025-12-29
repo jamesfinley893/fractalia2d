@@ -337,14 +337,14 @@ bool PhysicsComputeNode::initializeNode(const FrameGraph& frameGraph) {
     return ensurePipeline();
 }
 
-void PhysicsComputeNode::prepareFrame(uint32_t frameIndex, float time, float deltaTime) {
+void PhysicsComputeNode::prepareFrame(const FrameContext& frameContext) {
     // Store timing data for execution
-    currentTime = time;
-    currentDeltaTime = deltaTime;
+    currentTime = frameContext.time;
+    currentDeltaTime = frameContext.deltaTime;
     
     // Update push constants with timing data - frame counter will be set in execute()
-    pushConstants.time = time;
-    pushConstants.deltaTime = deltaTime;
+    pushConstants.time = frameContext.time;
+    pushConstants.deltaTime = frameContext.deltaTime;
 }
 
 void PhysicsComputeNode::releaseFrame(uint32_t frameIndex) {

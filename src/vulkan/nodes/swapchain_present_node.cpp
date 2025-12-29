@@ -89,7 +89,7 @@ bool SwapchainPresentNode::initializeNode(const FrameGraph& frameGraph) {
     return true;
 }
 
-void SwapchainPresentNode::prepareFrame(uint32_t frameIndex, float time, float deltaTime) {
+void SwapchainPresentNode::prepareFrame(const FrameContext& frameContext) {
     // Per-frame preparation - validate image index (timing data not needed for present node)
     uint32_t imageCount = swapchain ? swapchain->getImages().size() : 0;
     if (imageIndex >= imageCount) {

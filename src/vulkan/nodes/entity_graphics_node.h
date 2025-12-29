@@ -19,15 +19,17 @@ class EntityGraphicsNode : public FrameGraphNode {
     DECLARE_FRAME_GRAPH_NODE(EntityGraphicsNode)
     
 public:
-    EntityGraphicsNode(
-        FrameGraphTypes::ResourceId positionBuffer,
-        FrameGraphTypes::ResourceId movementParamsBuffer,
-        FrameGraphTypes::ResourceId colorTarget,
-        GraphicsPipelineManager* graphicsManager,
-        VulkanSwapchain* swapchain,
-        ResourceCoordinator* resourceCoordinator,
-        GPUEntityManager* gpuEntityManager
-    );
+    struct Data {
+        FrameGraphTypes::ResourceId positionBufferId = 0;
+        FrameGraphTypes::ResourceId movementParamsBufferId = 0;
+        FrameGraphTypes::ResourceId colorTargetId = 0;
+        GraphicsPipelineManager* graphicsManager = nullptr;
+        VulkanSwapchain* swapchain = nullptr;
+        ResourceCoordinator* resourceCoordinator = nullptr;
+        GPUEntityManager* gpuEntityManager = nullptr;
+    };
+
+    explicit EntityGraphicsNode(const Data& data);
     
     // FrameGraphNode interface
     std::vector<ResourceDependency> getInputs() const override;
@@ -46,7 +48,7 @@ public:
     
     // Node lifecycle - standardized pattern
     bool initializeNode(const FrameGraph& frameGraph) override;
-    void prepareFrame(uint32_t frameIndex, float time, float deltaTime) override;
+    void prepareFrame(const FrameContext& frameContext) override;
     void releaseFrame(uint32_t frameIndex) override;
     
     // Set world reference for camera matrix access
@@ -76,16 +78,8 @@ private:
     bool updateUniformBufferData(const CachedUBO& ubo);
     
     // Resources
-    FrameGraphTypes::ResourceId positionBufferId;
-    FrameGraphTypes::ResourceId movementParamsBufferId;
-    FrameGraphTypes::ResourceId colorTargetId; // Static placeholder - not used
+    Data data;
     FrameGraphTypes::ResourceId currentSwapchainImageId = 0; // Dynamic per-frame ID
-    
-    // External dependencies (not owned) - validated during execution
-    GraphicsPipelineManager* graphicsManager;
-    VulkanSwapchain* swapchain;
-    ResourceCoordinator* resourceCoordinator;
-    GPUEntityManager* gpuEntityManager;
     
     // Current frame state
     uint32_t imageIndex = 0;
