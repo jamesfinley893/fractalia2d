@@ -209,3 +209,12 @@ bool GPUEntityManager::updateMovementParamsForEntity(uint32_t gpuIndex, const gl
     VkDeviceSize offset = static_cast<VkDeviceSize>(gpuIndex) * sizeof(glm::vec4);
     return bufferManager.uploadMovementParamsData(&params, sizeof(params), offset);
 }
+
+bool GPUEntityManager::updateRuntimeStateForEntity(uint32_t gpuIndex, const glm::vec4& state) {
+    if (gpuIndex >= activeEntityCount) {
+        return false;
+    }
+
+    VkDeviceSize offset = static_cast<VkDeviceSize>(gpuIndex) * sizeof(glm::vec4);
+    return bufferManager.uploadRuntimeStateData(&state, sizeof(state), offset);
+}

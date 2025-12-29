@@ -111,6 +111,9 @@ public:
     // Update movement params for a specific GPU entity
     bool updateMovementParamsForEntity(uint32_t gpuIndex, const glm::vec4& params);
 
+    // Update runtime state for a specific GPU entity
+    bool updateRuntimeStateForEntity(uint32_t gpuIndex, const glm::vec4& state);
+
 private:
     static constexpr uint32_t MAX_ENTITIES = 131072; // 128k entities max
     

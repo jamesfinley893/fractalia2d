@@ -263,9 +263,8 @@ void main() {
     vec2 resolvedPosition = currentPosition.xy;
     bool hadCollision = false;
     
-    // Pre-calculate collision parameters
-    const float collisionRadius = TRIANGLE_RADIUS * 2.0;
-    const float collisionRadiusSq = collisionRadius * collisionRadius;
+    // Pre-calculate collision parameters (per-entity override via runtimeState.y)
+    float selfRadius = runtimeState.y > 0.0 ? runtimeState.y : TRIANGLE_RADIUS;
     
     // Get our spatial cell
     uint cellIndex = spatialHash(currentPosition.xy);
@@ -312,6 +311,11 @@ void main() {
             // Fast squared distance check (no expensive sqrt)
             vec2 diff = currentPosition.xy - otherPos.xy;
             float distSq = dot(diff, diff);
+
+            vec4 otherRuntimeState = runtimeStateBuffer.runtimeStates[otherEntityIndex];
+            float otherRadius = otherRuntimeState.y > 0.0 ? otherRuntimeState.y : TRIANGLE_RADIUS;
+            float collisionRadius = selfRadius + otherRadius + MIN_SEPARATION;
+            float collisionRadiusSq = collisionRadius * collisionRadius;
             
             if (distSq < collisionRadiusSq && distSq > 0.000001) {
                 // Collision detected! Fast separation using diff vector
