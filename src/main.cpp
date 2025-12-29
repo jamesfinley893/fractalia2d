@@ -184,7 +184,7 @@ int main(int argc, char* argv[]) {
             gpuIndex->index,
             glm::vec4(0.0f, 0.0f, 1.0f, 1.8f)
         );
-        gpuEntityManager->updateRuntimeStateForEntity(gpuIndex->index, glm::vec4(0.0f, 2.0f, 0.0f, 1.0f));
+        gpuEntityManager->updateRuntimeStateForEntity(gpuIndex->index, glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
     }
     DEBUG_LOG("Total services active: " << ServiceLocator::instance().getServiceCount());
     

@@ -151,6 +151,12 @@ bool EntityDescriptorManager::createDescriptorSetLayouts() {
     computeBindings[EntityDescriptorBindings::Compute::CONTROL_PARAMS_BUFFER].descriptorCount = 1;
     computeBindings[EntityDescriptorBindings::Compute::CONTROL_PARAMS_BUFFER].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
+    // Binding 9: Spatial next buffer (per-entity linked list)
+    computeBindings[EntityDescriptorBindings::Compute::SPATIAL_NEXT_BUFFER].binding = EntityDescriptorBindings::Compute::SPATIAL_NEXT_BUFFER;
+    computeBindings[EntityDescriptorBindings::Compute::SPATIAL_NEXT_BUFFER].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    computeBindings[EntityDescriptorBindings::Compute::SPATIAL_NEXT_BUFFER].descriptorCount = 1;
+    computeBindings[EntityDescriptorBindings::Compute::SPATIAL_NEXT_BUFFER].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
     VkDescriptorSetLayoutCreateInfo computeLayoutInfo{};
     computeLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     computeLayoutInfo.bindingCount = EntityDescriptorBindings::Compute::BINDING_COUNT;
@@ -304,7 +310,8 @@ bool EntityDescriptorManager::updateComputeDescriptorSet() {
         {EntityDescriptorBindings::Compute::COLOR_BUFFER, bufferManager->getColorBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
         {EntityDescriptorBindings::Compute::MODEL_MATRIX_BUFFER, bufferManager->getModelMatrixBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
         {EntityDescriptorBindings::Compute::SPATIAL_MAP_BUFFER, bufferManager->getSpatialMapBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
-        {EntityDescriptorBindings::Compute::CONTROL_PARAMS_BUFFER, bufferManager->getControlParamsBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER}
+        {EntityDescriptorBindings::Compute::CONTROL_PARAMS_BUFFER, bufferManager->getControlParamsBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
+        {EntityDescriptorBindings::Compute::SPATIAL_NEXT_BUFFER, bufferManager->getSpatialNextBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER}
     };
 
     return DescriptorUpdateHelper::updateDescriptorSet(*getContext(), computeDescriptorSet, bindings);

@@ -25,6 +25,10 @@ layout(std430, binding = 2) buffer RuntimeStateBuffer {
     vec4 runtimeStates[];  // R/W: totalTime, reserved, stateTimer, initialized
 } runtimeStateBuffer;
 
+layout(std430, binding = 6) buffer ModelMatrixBuffer {
+    mat4 modelMatrices[];
+} modelMatrixBuffer;
+
 layout(std430, binding = 8) buffer ControlParamsBuffer {
     vec4 controlParams[];  // desiredVel.xy, controlFlag, renderScale
 } controlParamsBuffer;
@@ -40,8 +44,12 @@ layout(std430, binding = 4) buffer CurrentPositionBuffer {
 
 // Spatial map buffer for collision detection and spatial queries
 layout(std430, binding = 7) buffer SpatialMapBuffer {
-    uvec2 spatialCells[]; // R/W: spatial hash grid - packed (entityId, nextIndex)
+    uvec2 spatialCells[]; // R/W: spatial hash grid - packed (head, unused)
 } spatialMap;
+
+layout(std430, binding = 9) buffer SpatialNextBuffer {
+    uint nextIndices[]; // R/W: per-entity next index for linked list
+} spatialNextBuffer;
 
 /* ---------- Spatial Map Constants and Functions ---------- */
 
@@ -76,7 +84,7 @@ void updateSpatialMap(uint entityIndex, vec2 position) {
     } while (atomicCompSwap(spatialMap.spatialCells[cellIndex].x, expectedHead, entityIndex) != expectedHead);
     
     // Store old head as our next pointer (building linked list)
-    spatialMap.spatialCells[cellIndex].y = expectedHead;
+    spatialNextBuffer.nextIndices[entityIndex] = expectedHead;
 }
 
 /* ---------- Collision Detection Constants and Functions ---------- */
@@ -85,6 +93,8 @@ void updateSpatialMap(uint entityIndex, vec2 position) {
 const uint MAX_ENTITIES_PER_CELL = 64;    // Maximum entities to check per cell (much higher)
 const float TRIANGLE_RADIUS = 1.5;        // Bounding circle radius for triangle (larger)
 const float MIN_SEPARATION = 0.2;         // Minimum separation distance (larger)
+const float RESTITUTION = 0.35;           // 0 = inelastic, 1 = elastic
+const float FRICTION = 0.2;               // Tangential friction
 
 // Triangle vertices relative to entity center
 const vec2 TRIANGLE_VERTICES[3] = vec2[](
@@ -99,20 +109,10 @@ uint collectEntitiesInCell(uint cellIndex, out uint entities[MAX_ENTITIES_PER_CE
     
     // Read head entity from spatial map
     uint headEntity = spatialMap.spatialCells[cellIndex].x;
-    if (headEntity != NULL_INDEX && headEntity < pc.entityCount && count < MAX_ENTITIES_PER_CELL) {
-        entities[count] = headEntity;
-        count++;
-        
-        // Read next entity (now checking more entities per cell)
-        uint nextEntity = spatialMap.spatialCells[cellIndex].y;
-        if (nextEntity != NULL_INDEX && nextEntity < pc.entityCount && 
-            nextEntity != headEntity && count < MAX_ENTITIES_PER_CELL) {
-            entities[count] = nextEntity;
-            count++;
-        }
-        
-        // Note: With current spatial map implementation, we can only reliably get 2 entities
-        // In a full linked list implementation, we could traverse more here
+    uint current = headEntity;
+    while (current != NULL_INDEX && current < pc.entityCount && count < MAX_ENTITIES_PER_CELL) {
+        entities[count++] = current;
+        current = spatialNextBuffer.nextIndices[current];
     }
     
     return count;
@@ -200,7 +200,7 @@ vec2 resolveCollision(vec2 currentPos, vec2 newPos, vec2 otherPos) {
 void main() {
     // Clear spatial cells (each thread clears one cell)
     if (gl_GlobalInvocationID.x < SPATIAL_MAP_SIZE) {
-        spatialMap.spatialCells[gl_GlobalInvocationID.x] = uvec2(NULL_INDEX, NULL_INDEX);
+        spatialMap.spatialCells[gl_GlobalInvocationID.x] = uvec2(NULL_INDEX, 0);
     }
     barrier();
     memoryBarrierShared();
@@ -264,10 +264,16 @@ void main() {
     
     // Spatial hash collision detection - much faster than O(N²)
     vec2 resolvedPosition = currentPosition.xy;
-    bool hadCollision = false;
     
     // Pre-calculate collision parameters (per-entity override via runtimeState.y)
-    float selfRadius = runtimeState.y > 0.0 ? runtimeState.y : TRIANGLE_RADIUS;
+    vec4 selfControl = controlParamsBuffer.controlParams[entityIndex];
+    float baseSelfRadius = runtimeState.y > 0.0 ? runtimeState.y : TRIANGLE_RADIUS;
+    vec3 selfScale = vec3(
+        length(modelMatrixBuffer.modelMatrices[entityIndex][0].xyz),
+        length(modelMatrixBuffer.modelMatrices[entityIndex][1].xyz),
+        length(modelMatrixBuffer.modelMatrices[entityIndex][2].xyz)
+    );
+    float selfRadius = baseSelfRadius * max(selfScale.x, selfScale.y);
     
     // Get our spatial cell
     uint cellIndex = spatialHash(currentPosition.xy);
@@ -285,6 +291,11 @@ void main() {
         int[2](1, 1)    // Bottom-right diagonal
     );
     
+    float bestDistSq = 1e20;
+    vec2 bestDiff = vec2(0.0);
+    vec2 bestOtherVel = vec2(0.0);
+    float bestCollisionRadius = 0.0;
+
     for (int cellIdx = 0; cellIdx < 9; cellIdx++) {
         int dx = offsets[cellIdx][0];
         int dy = offsets[cellIdx][1];
@@ -315,25 +326,60 @@ void main() {
             vec2 diff = currentPosition.xy - otherPos.xy;
             float distSq = dot(diff, diff);
 
+            // Cheap upper-bound rejection to avoid extra buffer reads
+            float maxRadius = selfRadius + TRIANGLE_RADIUS + MIN_SEPARATION;
+            if (distSq >= (maxRadius * maxRadius)) {
+                continue;
+            }
+
             vec4 otherRuntimeState = runtimeStateBuffer.runtimeStates[otherEntityIndex];
-            float otherRadius = otherRuntimeState.y > 0.0 ? otherRuntimeState.y : TRIANGLE_RADIUS;
+            float baseOtherRadius = otherRuntimeState.y > 0.0 ? otherRuntimeState.y : TRIANGLE_RADIUS;
+            vec3 otherScale = vec3(
+                length(modelMatrixBuffer.modelMatrices[otherEntityIndex][0].xyz),
+                length(modelMatrixBuffer.modelMatrices[otherEntityIndex][1].xyz),
+                length(modelMatrixBuffer.modelMatrices[otherEntityIndex][2].xyz)
+            );
+            float otherRadius = baseOtherRadius * max(otherScale.x, otherScale.y);
             float collisionRadius = selfRadius + otherRadius + MIN_SEPARATION;
             float collisionRadiusSq = collisionRadius * collisionRadius;
             
             if (distSq < collisionRadiusSq && distSq > 0.000001) {
-                // Collision detected! Fast separation using diff vector
-                float invDist = inversesqrt(distSq); // Fast inverse sqrt
-                vec2 separationDir = diff * invDist;
-                resolvedPosition = otherPos.xy + separationDir * collisionRadius;
-                
-                // Stop movement entirely on collision
-                vel = vec2(0.0, 0.0);
-                hadCollision = true;
-                break; // Handle first collision only
+                if (distSq < bestDistSq) {
+                    bestDistSq = distSq;
+                    bestDiff = diff;
+                    bestCollisionRadius = collisionRadius;
+                    bestOtherVel = velocityBuffer.velocities[otherEntityIndex].xy;
+                }
             }
         }
-        
-        if (hadCollision) break; // Exit loop
+    }
+
+    if (bestDistSq < 1e19) {
+        float invDist = inversesqrt(bestDistSq);
+        vec2 separationDir = bestDiff * invDist;
+        float dist = bestDistSq * invDist;
+        float penetration = bestCollisionRadius - dist;
+        if (penetration > 0.0) {
+            resolvedPosition = currentPosition.xy + separationDir * penetration;
+        }
+
+        // Impulse response (unit masses) with restitution and friction
+        vec2 relVel = vel - bestOtherVel;
+        float velAlongNormal = dot(relVel, separationDir);
+        if (velAlongNormal < 0.0) {
+            float j = -(1.0 + RESTITUTION) * velAlongNormal * 0.5;
+            vel += j * separationDir;
+
+            vec2 tangent = relVel - velAlongNormal * separationDir;
+            float tangentLen = length(tangent);
+            if (tangentLen > 0.0001) {
+                vec2 tangentDir = tangent / tangentLen;
+                float jt = -dot(relVel, tangentDir) * 0.5;
+                float maxFriction = FRICTION * j;
+                jt = clamp(jt, -maxFriction, maxFriction);
+                vel += jt * tangentDir;
+            }
+        }
     }
     
     // Write back final velocity and resolved position

@@ -45,6 +45,7 @@ bool RenderFrameDirector::initialize(
             movementParamsBufferId,
             runtimeStateBufferId,
             controlParamsBufferId,
+            spatialNextBufferId,
             positionBufferId,
             currentPositionBufferId,
             targetPositionBufferId,
@@ -63,6 +64,7 @@ bool RenderFrameDirector::initialize(
             currentPositionBufferId,
             targetPositionBufferId,
             controlParamsBufferId,
+            spatialNextBufferId,
             ctx.pipelineSystem ? ctx.pipelineSystem->getComputeManager() : nullptr,
             ctx.gpuEntityManager
         };
@@ -140,6 +142,7 @@ void RenderFrameDirector::updateResourceIds(
     FrameGraphTypes::ResourceId modelMatrixBufferId,
     FrameGraphTypes::ResourceId spatialMapBufferId,
     FrameGraphTypes::ResourceId controlParamsBufferId,
+    FrameGraphTypes::ResourceId spatialNextBufferId,
     FrameGraphTypes::ResourceId positionBufferId,
     FrameGraphTypes::ResourceId currentPositionBufferId,
     FrameGraphTypes::ResourceId targetPositionBufferId
@@ -151,6 +154,7 @@ void RenderFrameDirector::updateResourceIds(
     this->modelMatrixBufferId = modelMatrixBufferId;
     this->spatialMapBufferId = spatialMapBufferId;
     this->controlParamsBufferId = controlParamsBufferId;
+    this->spatialNextBufferId = spatialNextBufferId;
     this->positionBufferId = positionBufferId;
     this->currentPositionBufferId = currentPositionBufferId;
     this->targetPositionBufferId = targetPositionBufferId;

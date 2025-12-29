@@ -24,6 +24,7 @@ public:
         FrameGraphTypes::ResourceId currentPositionBufferId = 0;
         FrameGraphTypes::ResourceId targetPositionBufferId = 0;
         FrameGraphTypes::ResourceId controlParamsBufferId = 0;
+        FrameGraphTypes::ResourceId spatialNextBufferId = 0;
         ComputePipelineManager* computeManager = nullptr;
         GPUEntityManager* gpuEntityManager = nullptr;
         std::shared_ptr<GPUTimeoutDetector> timeoutDetector = nullptr;

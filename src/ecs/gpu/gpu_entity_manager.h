@@ -72,6 +72,7 @@ public:
     VkBuffer getModelMatrixBuffer() const { return bufferManager.getModelMatrixBuffer(); }
     VkBuffer getSpatialMapBuffer() const { return bufferManager.getSpatialMapBuffer(); }
     VkBuffer getControlParamsBuffer() const { return bufferManager.getControlParamsBuffer(); }
+    VkBuffer getSpatialNextBuffer() const { return bufferManager.getSpatialNextBuffer(); }
     
     // Position buffers remain the same
     VkBuffer getPositionBuffer() const { return bufferManager.getPositionBuffer(); }
@@ -92,6 +93,7 @@ public:
     VkDeviceSize getModelMatrixBufferSize() const { return bufferManager.getModelMatrixBufferSize(); }
     VkDeviceSize getSpatialMapBufferSize() const { return bufferManager.getSpatialMapBufferSize(); }
     VkDeviceSize getControlParamsBufferSize() const { return bufferManager.getControlParamsBufferSize(); }
+    VkDeviceSize getSpatialNextBufferSize() const { return bufferManager.getSpatialNextBufferSize(); }
     VkDeviceSize getPositionBufferSize() const { return bufferManager.getPositionBufferSize(); }
     
     

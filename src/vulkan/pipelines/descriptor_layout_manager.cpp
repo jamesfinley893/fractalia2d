@@ -647,8 +647,16 @@ namespace DescriptorLayoutPresets {
         controlParamsBinding.descriptorCount = 1;
         controlParamsBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
         controlParamsBinding.debugName = "controlParamsBuffer";
+
+        // Binding 9: SpatialNextBuffer (linked list for spatial map)
+        DescriptorBinding spatialNextBinding{};
+        spatialNextBinding.binding = 9;
+        spatialNextBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        spatialNextBinding.descriptorCount = 1;
+        spatialNextBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        spatialNextBinding.debugName = "spatialNextBuffer";
         
-        spec.bindings = {velocityBinding, movementParamsBinding, runtimeStateBinding, positionOutputBinding, currentPosBinding, colorBinding, modelMatrixBinding, spatialMapBinding, controlParamsBinding};
+        spec.bindings = {velocityBinding, movementParamsBinding, runtimeStateBinding, positionOutputBinding, currentPosBinding, colorBinding, modelMatrixBinding, spatialMapBinding, controlParamsBinding, spatialNextBinding};
         return spec;
     }
 }

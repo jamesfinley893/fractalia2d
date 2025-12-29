@@ -100,6 +100,19 @@ protected:
     const char* getBufferTypeName() const override { return "SpatialMap"; }
 };
 
+// SINGLE responsibility: spatial linked-list next indices
+class SpatialNextBuffer : public BufferBase {
+public:
+    using BufferBase::initialize; // Bring base class initialize into scope
+
+    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxEntities) {
+        return BufferBase::initialize(context, resourceCoordinator, maxEntities, sizeof(uint32_t), 0);
+    }
+
+protected:
+    const char* getBufferTypeName() const override { return "SpatialNext"; }
+};
+
 // SINGLE responsibility: per-entity control parameters
 class ControlParamsBuffer : public BufferBase {
 public:

@@ -23,10 +23,11 @@ namespace EntityDescriptorBindings {
             COLOR_BUFFER = 5,
             MODEL_MATRIX_BUFFER = 6,
             SPATIAL_MAP_BUFFER = 7,
-            CONTROL_PARAMS_BUFFER = 8
+            CONTROL_PARAMS_BUFFER = 8,
+            SPATIAL_NEXT_BUFFER = 9
         };
         
-        constexpr uint32_t BINDING_COUNT = 9;
+        constexpr uint32_t BINDING_COUNT = 10;
     }
 
     // Graphics descriptor set bindings (rendering pipeline)

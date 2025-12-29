@@ -30,6 +30,7 @@ public:
     VkBuffer getModelMatrixBuffer() const { return modelMatrixBuffer.getBuffer(); }
     VkBuffer getSpatialMapBuffer() const { return spatialMapBuffer.getBuffer(); }
     VkBuffer getControlParamsBuffer() const { return controlParamsBuffer.getBuffer(); }
+    VkBuffer getSpatialNextBuffer() const { return spatialNextBuffer.getBuffer(); }
     
     // Position buffers - delegated to coordinator
     VkBuffer getPositionBuffer() const { return positionCoordinator.getPrimaryBuffer(); }
@@ -50,6 +51,7 @@ public:
     VkDeviceSize getModelMatrixBufferSize() const { return modelMatrixBuffer.getSize(); }
     VkDeviceSize getSpatialMapBufferSize() const { return spatialMapBuffer.getSize(); }
     VkDeviceSize getControlParamsBufferSize() const { return controlParamsBuffer.getSize(); }
+    VkDeviceSize getSpatialNextBufferSize() const { return spatialNextBuffer.getSize(); }
     VkDeviceSize getPositionBufferSize() const { return positionCoordinator.getBufferSize(); }
     uint32_t getMaxEntities() const { return maxEntities; }
     
@@ -64,6 +66,7 @@ public:
     bool uploadModelMatrixData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
     bool uploadSpatialMapData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
     bool uploadControlParamsData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
+    bool uploadSpatialNextData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
     bool uploadPositionDataToAllBuffers(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
     
     // Debug readback methods (expensive - use sparingly)
@@ -100,6 +103,7 @@ private:
     ModelMatrixBuffer modelMatrixBuffer;
     SpatialMapBuffer spatialMapBuffer;
     ControlParamsBuffer controlParamsBuffer;
+    SpatialNextBuffer spatialNextBuffer;
     
     // Position buffer coordination
     PositionBufferCoordinator positionCoordinator;

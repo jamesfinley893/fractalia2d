@@ -55,6 +55,7 @@ std::vector<ResourceDependency> PhysicsComputeNode::getInputs() const {
         {data.currentPositionBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
         {data.spatialMapBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
         {data.controlParamsBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
+        {data.spatialNextBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
     };
 }
 
