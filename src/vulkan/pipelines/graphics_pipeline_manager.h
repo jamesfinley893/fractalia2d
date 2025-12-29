@@ -61,9 +61,6 @@ public:
     bool reloadPipeline(const GraphicsPipelineState& state);
     void enableHotReload(bool enable) { hotReloadEnabled_ = enable; }
 
-    // Cache generation for dependents to detect invalidation
-    uint64_t getGeneration() const { return generation_; }
-
 private:
     vulkan_raii::PipelineCache pipelineCache_;
     
@@ -79,9 +76,6 @@ private:
     GraphicsRenderPassManager renderPassManager_;
     GraphicsPipelineFactory factory_;
     GraphicsPipelineLayoutBuilder layoutBuilder_;
-    
-    // Monotonic generation counter incremented on cache clear/recreate
-    uint64_t generation_ = 0;
 };
 
 namespace GraphicsPipelinePresets {

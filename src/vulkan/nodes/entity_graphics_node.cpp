@@ -88,60 +88,27 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
     // Update uniform buffer with camera matrices (now handled by EntityDescriptorManager)
     updateUniformBuffer();
     
-    // Detect manager cache invalidation and reset cached handles if needed
-    const auto* layoutMgr = graphicsManager->getLayoutManager();
-    const uint64_t currentLayoutGen = layoutMgr ? layoutMgr->getGeneration() : 0;
-    const uint64_t currentGraphicsGen = graphicsManager->getGeneration();
-    if (currentLayoutGen != observedLayoutGeneration || currentGraphicsGen != observedGraphicsPipelineGeneration) {
-        cachedDescriptorLayout = VK_NULL_HANDLE;
-        cachedPipelineLayout = VK_NULL_HANDLE;
-        observedLayoutGeneration = currentLayoutGen;
-        observedGraphicsPipelineGeneration = currentGraphicsGen;
-    }
-
-    // Create or reuse descriptor layout for this pipeline
-    if (cachedDescriptorLayout == VK_NULL_HANDLE) {
-        auto layoutSpec = DescriptorLayoutPresets::createEntityGraphicsLayout();
-        cachedDescriptorLayout = graphicsManager->getLayoutManager()->getLayout(layoutSpec);
-        if (cachedDescriptorLayout == VK_NULL_HANDLE) {
-            std::cerr << "EntityGraphicsNode: Failed to get descriptor layout" << std::endl;
-            return;
-        }
-    }
+    // Create graphics pipeline state for entity rendering - use same layout as ResourceContext
+    auto layoutSpec = DescriptorLayoutPresets::createEntityGraphicsLayout();
+    VkDescriptorSetLayout descriptorLayout = graphicsManager->getLayoutManager()->getLayout(layoutSpec);
     
-    // Get or cache the render pass that matches current swapchain format/MSAA
-    const VkFormat colorFormat = swapchain->getImageFormat();
-    const VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_2_BIT;
-    const bool enableMSAA = true;
-
-    if (cachedRenderPass == VK_NULL_HANDLE ||
-        cachedColorFormat != colorFormat ||
-        cachedSamples != samples ||
-        cachedEnableMSAA != enableMSAA) {
-        cachedRenderPass = graphicsManager->createRenderPass(
-            colorFormat,
-            VK_FORMAT_UNDEFINED,
-            samples,
-            enableMSAA
-        );
-        cachedColorFormat = colorFormat;
-        cachedSamples = samples;
-        cachedEnableMSAA = enableMSAA;
-    }
+    // Get the render pass that was used to create the framebuffers
+    VkRenderPass renderPass = graphicsManager->createRenderPass(
+        swapchain->getImageFormat(), 
+        VK_FORMAT_UNDEFINED,  // No depth (match VulkanRenderer setup)
+        VK_SAMPLE_COUNT_2_BIT, // MSAA samples
+        true  // Enable MSAA
+    );
     
     GraphicsPipelineState pipelineState = GraphicsPipelinePresets::createEntityRenderingState(
-        cachedRenderPass, cachedDescriptorLayout);
+        renderPass, descriptorLayout);
     
-    // Get pipeline and layout (cache layout for reuse)
+    // Get pipeline and layout
     VkPipeline pipeline = graphicsManager->getPipeline(pipelineState);
-    if (pipeline == VK_NULL_HANDLE) {
-        std::cerr << "EntityGraphicsNode: Failed to get graphics pipeline" << std::endl;
-        return;
-    }
-    if (cachedPipelineLayout == VK_NULL_HANDLE) {
-        cachedPipelineLayout = graphicsManager->getPipelineLayout(pipelineState);
-    }
-    if (cachedPipelineLayout == VK_NULL_HANDLE) {
+    
+    VkPipelineLayout pipelineLayout = graphicsManager->getPipelineLayout(pipelineState);
+    
+    if (pipeline == VK_NULL_HANDLE || pipelineLayout == VK_NULL_HANDLE) {
         std::cerr << "EntityGraphicsNode: Failed to get graphics pipeline" << std::endl;
         return;
     }
@@ -157,7 +124,7 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
     // Begin render pass
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = cachedRenderPass;
+    renderPassInfo.renderPass = renderPass;
     renderPassInfo.framebuffer = framebuffers[imageIndex];
     renderPassInfo.renderArea.offset = {0, 0};
     renderPassInfo.renderArea.extent = swapchain->getExtent();
@@ -205,7 +172,7 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
         vk.vkCmdBindDescriptorSets(
             commandBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
-            cachedPipelineLayout,
+            pipelineLayout,
             0, 1, &entityDescriptorSet,
             0, nullptr
         );
@@ -227,7 +194,7 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
     
     vk.vkCmdPushConstants(
         commandBuffer, 
-        cachedPipelineLayout,
+        pipelineLayout,
         VK_SHADER_STAGE_VERTEX_BIT, 
         0, sizeof(VertexPushConstants), 
         &vertexPushConstants

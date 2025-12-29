@@ -241,12 +241,7 @@ void RenderFrameDirector::resetSwapchainCache() {
         std::cerr << "RenderFrameDirector: WARNING - Missing gpuEntityManager or resourceCoordinator during swapchain recreation" << std::endl;
     }
     
-    // 5. Invalidate any node-local caches that depend on swapchain/render pass
-    if (auto* graphicsNode = frameGraph->getNode<EntityGraphicsNode>(graphicsNodeId)) {
-        graphicsNode->invalidateCachedState();
-    }
-
-    // 6. That's it! Next frame will naturally import new images
+    // 5. That's it! Next frame will naturally import new images
     // No forced rebuilds, no stale references, no complexity
 }
 

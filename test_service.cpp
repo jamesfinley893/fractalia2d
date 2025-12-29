@@ -2,6 +2,6 @@
 #include "src/ecs/core/service_locator.h"
 
 int main() {
-    static_assert(Service<GameControlService>);
+    static_assert(Service<ControlService>);
     return 0;
 }

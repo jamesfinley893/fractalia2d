@@ -365,8 +365,6 @@ void DescriptorLayoutManager::clearCache() {
     layoutCache_.clear();
     stats.totalLayouts = 0;
     stats.bindlessLayouts = 0;
-    // Bump generation so dependents can invalidate cached handles
-    ++generation_;
 }
 
 void DescriptorLayoutManager::evictLeastRecentlyUsed() {

@@ -181,7 +181,6 @@ std::unique_ptr<CachedComputePipeline> ComputePipelineManager::createPipelineInt
 void ComputePipelineManager::clearCache() {
     if (!context) return;
     cache_.clear();
-    ++generation_;
 }
 
 bool ComputePipelineManager::recreatePipelineCache() {
@@ -237,7 +236,6 @@ bool ComputePipelineManager::recreatePipelineCache() {
     
     isRecreating_ = false;
     std::cout << "ComputePipelineManager: Pipeline cache successfully recreated" << std::endl;
-    ++generation_;
     return true;
 }
 
