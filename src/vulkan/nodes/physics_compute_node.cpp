@@ -190,37 +190,44 @@ void PhysicsComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
         commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, dispatch.layout,
         0, 1, &dispatch.descriptorSets[0], 0, nullptr);
     
-    if (!dispatchParams.useChunking) {
-        // Single dispatch execution
-        std::cout << "PhysicsComputeNode: Starting single dispatch execution..." << std::endl;
-        if (data.timeoutDetector) {
-            data.timeoutDetector->beginComputeDispatch("Physics", dispatchParams.totalWorkgroups);
+    constexpr uint32_t solverIterations = 2;
+    for (uint32_t iter = 0; iter < solverIterations; ++iter) {
+        if (!dispatchParams.useChunking) {
+            // Single dispatch execution
+            std::cout << "PhysicsComputeNode: Starting single dispatch execution..." << std::endl;
+            if (data.timeoutDetector) {
+                data.timeoutDetector->beginComputeDispatch("Physics", dispatchParams.totalWorkgroups);
+            }
+            
+            vk.vkCmdPushConstants(
+                commandBuffer, dispatch.layout, VK_SHADER_STAGE_COMPUTE_BIT,
+                0, sizeof(PhysicsPushConstants), &pushConstants);
+            
+            vk.vkCmdDispatch(commandBuffer, dispatchParams.totalWorkgroups, 1, 1);
+            
+            if (data.timeoutDetector) {
+                data.timeoutDetector->endComputeDispatch();
+            }
+        } else {
+            executeChunkedDispatch(commandBuffer, context, dispatch, 
+                                  dispatchParams.totalWorkgroups, dispatchParams.maxWorkgroupsPerChunk, entityCount,
+                                  iter + 1 == solverIterations);
         }
-        
-        vk.vkCmdPushConstants(
-            commandBuffer, dispatch.layout, VK_SHADER_STAGE_COMPUTE_BIT,
-            0, sizeof(PhysicsPushConstants), &pushConstants);
-        
-        vk.vkCmdDispatch(commandBuffer, dispatchParams.totalWorkgroups, 1, 1);
-        
-        if (data.timeoutDetector) {
-            data.timeoutDetector->endComputeDispatch();
+
+        if (!dispatchParams.useChunking) {
+            VkMemoryBarrier memoryBarrier{};
+            memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+            memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            memoryBarrier.dstAccessMask = (iter + 1 == solverIterations)
+                ? VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT
+                : (VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
+            
+            vk.vkCmdPipelineBarrier(
+                commandBuffer,
+                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                iter + 1 == solverIterations ? VK_PIPELINE_STAGE_VERTEX_INPUT_BIT : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
         }
-        
-        // Memory barrier for compute→graphics synchronization
-        VkMemoryBarrier memoryBarrier{};
-        memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-        memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-        memoryBarrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-        
-        vk.vkCmdPipelineBarrier(
-            commandBuffer,
-            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-            VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
-            0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
-    } else {
-        executeChunkedDispatch(commandBuffer, context, dispatch, 
-                              dispatchParams.totalWorkgroups, dispatchParams.maxWorkgroupsPerChunk, entityCount);
     }
 }
 
@@ -230,7 +237,8 @@ void PhysicsComputeNode::executeChunkedDispatch(
     const ComputeDispatch& dispatch,
     uint32_t totalWorkgroups,
     uint32_t maxWorkgroupsPerChunk,
-    uint32_t entityCount) {
+    uint32_t entityCount,
+    bool finalToGraphics) {
     
     // Cache loader reference for performance
     const auto& vk = context->getLoader();
@@ -280,15 +288,18 @@ void PhysicsComputeNode::executeChunkedDispatch(
         chunkCount++;
     }
     
-    // Final memory barrier for compute→graphics synchronization
+    // Final memory barrier for compute→compute or compute→graphics synchronization
     VkMemoryBarrier finalMemoryBarrier{};
     finalMemoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
     finalMemoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-    finalMemoryBarrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+    finalMemoryBarrier.dstAccessMask = finalToGraphics
+        ? VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT
+        : (VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
     
     vk.vkCmdPipelineBarrier(
         commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-        VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 1, &finalMemoryBarrier, 0, nullptr, 0, nullptr);
+        finalToGraphics ? VK_PIPELINE_STAGE_VERTEX_INPUT_BIT : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        0, 1, &finalMemoryBarrier, 0, nullptr, 0, nullptr);
     
     // Debug statistics logging (thread-safe)
     if constexpr (FRAME_GRAPH_DEBUG_ENABLED) {

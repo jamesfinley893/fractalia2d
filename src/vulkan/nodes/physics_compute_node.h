@@ -58,7 +58,8 @@ private:
         const class ComputeDispatch& dispatch,
         uint32_t totalWorkgroups,
         uint32_t maxWorkgroupsPerChunk,
-        uint32_t entityCount);
+        uint32_t entityCount,
+        bool finalToGraphics);
     
     Data data;
     

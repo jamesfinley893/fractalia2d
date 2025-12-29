@@ -95,6 +95,7 @@ const float TRIANGLE_RADIUS = 1.5;        // Bounding circle radius for triangle
 const float MIN_SEPARATION = 0.2;         // Minimum separation distance (larger)
 const float RESTITUTION = 0.35;           // 0 = inelastic, 1 = elastic
 const float FRICTION = 0.2;               // Tangential friction
+const float COLLISION_EPS = 0.01;         // Enforce a small separation gap
 
 // Triangle vertices relative to entity center
 const vec2 TRIANGLE_VERTICES[3] = vec2[](
@@ -291,11 +292,6 @@ void main() {
         int[2](1, 1)    // Bottom-right diagonal
     );
     
-    float bestDistSq = 1e20;
-    vec2 bestDiff = vec2(0.0);
-    vec2 bestOtherVel = vec2(0.0);
-    float bestCollisionRadius = 0.0;
-
     for (int cellIdx = 0; cellIdx < 9; cellIdx++) {
         int dx = offsets[cellIdx][0];
         int dy = offsets[cellIdx][1];
@@ -323,7 +319,7 @@ void main() {
             vec3 otherPos = currentPos.currentPositions[otherEntityIndex].xyz;
             
             // Fast squared distance check (no expensive sqrt)
-            vec2 diff = currentPosition.xy - otherPos.xy;
+            vec2 diff = resolvedPosition - otherPos.xy;
             float distSq = dot(diff, diff);
 
             // Cheap upper-bound rejection to avoid extra buffer reads
@@ -342,42 +338,42 @@ void main() {
             float otherRadius = baseOtherRadius * max(otherScale.x, otherScale.y);
             float collisionRadius = selfRadius + otherRadius + MIN_SEPARATION;
             float collisionRadiusSq = collisionRadius * collisionRadius;
-            
-            if (distSq < collisionRadiusSq && distSq > 0.000001) {
-                if (distSq < bestDistSq) {
-                    bestDistSq = distSq;
-                    bestDiff = diff;
-                    bestCollisionRadius = collisionRadius;
-                    bestOtherVel = velocityBuffer.velocities[otherEntityIndex].xy;
+
+            if (distSq < collisionRadiusSq) {
+                vec2 separationDir;
+                float dist;
+                if (distSq < 0.000001) {
+                    separationDir = vec2(1.0, 0.0);
+                    dist = 0.0;
+                } else {
+                    float invDist = inversesqrt(distSq);
+                    separationDir = diff * invDist;
+                    dist = distSq * invDist;
                 }
-            }
-        }
-    }
 
-    if (bestDistSq < 1e19) {
-        float invDist = inversesqrt(bestDistSq);
-        vec2 separationDir = bestDiff * invDist;
-        float dist = bestDistSq * invDist;
-        float penetration = bestCollisionRadius - dist;
-        if (penetration > 0.0) {
-            resolvedPosition = currentPosition.xy + separationDir * penetration;
-        }
+                float penetration = collisionRadius - dist;
+                if (penetration > 0.0) {
+                    resolvedPosition += separationDir * (penetration * 0.5 + COLLISION_EPS);
+                }
 
-        // Impulse response (unit masses) with restitution and friction
-        vec2 relVel = vel - bestOtherVel;
-        float velAlongNormal = dot(relVel, separationDir);
-        if (velAlongNormal < 0.0) {
-            float j = -(1.0 + RESTITUTION) * velAlongNormal * 0.5;
-            vel += j * separationDir;
+                // Sequential impulse response (unit masses)
+                vec2 otherVel = velocityBuffer.velocities[otherEntityIndex].xy;
+                vec2 relVel = vel - otherVel;
+                float velAlongNormal = dot(relVel, separationDir);
+                if (velAlongNormal < 0.0) {
+                    float j = -(1.0 + RESTITUTION) * velAlongNormal * 0.5;
+                    vel += j * separationDir;
 
-            vec2 tangent = relVel - velAlongNormal * separationDir;
-            float tangentLen = length(tangent);
-            if (tangentLen > 0.0001) {
-                vec2 tangentDir = tangent / tangentLen;
-                float jt = -dot(relVel, tangentDir) * 0.5;
-                float maxFriction = FRICTION * j;
-                jt = clamp(jt, -maxFriction, maxFriction);
-                vel += jt * tangentDir;
+                    vec2 tangent = relVel - velAlongNormal * separationDir;
+                    float tangentLen = length(tangent);
+                    if (tangentLen > 0.0001) {
+                        vec2 tangentDir = tangent / tangentLen;
+                        float jt = -dot(relVel, tangentDir) * 0.5;
+                        float maxFriction = FRICTION * j;
+                        jt = clamp(jt, -maxFriction, maxFriction);
+                        vel += jt * tangentDir;
+                    }
+                }
             }
         }
     }

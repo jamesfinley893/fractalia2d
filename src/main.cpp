@@ -3,6 +3,7 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <algorithm>
 
 #include "vulkan_renderer.h"
 #include "ecs/utilities/debug.h"
@@ -169,7 +170,7 @@ int main(int argc, char* argv[]) {
 
     flecs::entity playerEntity = entityFactory.createExactEntity(glm::vec3(0.0f, 0.0f, 0.0f));
     playerEntity.set<Player>({2.0f});
-    playerEntity.set<PlayerControl>({glm::vec2(0.0f), false, 1.8f});
+    playerEntity.set<PlayerControl>({glm::vec2(0.0f), false, 1.0f});
     if (auto* renderable = playerEntity.get_mut<Renderable>()) {
         renderable->color = glm::vec4(1.0f, 0.2f, 0.1f, 1.0f);
         renderable->markDirty();
@@ -180,9 +181,13 @@ int main(int argc, char* argv[]) {
     gpuEntityManager->addEntitiesFromECS({playerEntity});
     gpuEntityManager->uploadPendingEntities();
     if (auto* gpuIndex = playerEntity.get<GPUIndex>()) {
+        float renderScale = 1.0f;
+        if (auto* transform = playerEntity.get<Transform>()) {
+            renderScale = std::max(transform->scale.x, transform->scale.y);
+        }
         gpuEntityManager->updateControlParamsForEntity(
             gpuIndex->index,
-            glm::vec4(0.0f, 0.0f, 1.0f, 1.8f)
+            glm::vec4(0.0f, 0.0f, 1.0f, renderScale)
         );
         gpuEntityManager->updateRuntimeStateForEntity(gpuIndex->index, glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
     }

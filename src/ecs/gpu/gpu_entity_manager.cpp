@@ -118,10 +118,7 @@ void GPUEntityManager::addEntitiesFromECS(const std::vector<flecs::entity>& enti
 
             if (entity.has<Player>()) {
                 stagingEntities.velocities.back().w = 1.0f; // Mark as manually controlled
-                float renderScale = 1.8f;
-                if (const auto* control = entity.get<PlayerControl>()) {
-                    renderScale = control->renderScale;
-                }
+                float renderScale = std::max(transform->scale.x, transform->scale.y);
                 stagingEntities.controlParams.back() = glm::vec4(0.0f, 0.0f, 1.0f, renderScale);
             }
             entity.set<GPUIndex>({gpuIndex});

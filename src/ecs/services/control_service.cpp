@@ -707,13 +707,14 @@ void GameControlService::updatePlayerMovement() {
         direction = glm::normalize(direction);
     }
 
-    world->each([&](flecs::entity e, Player& player, PlayerControl& control, GPUIndex& gpuIndex) {
+    world->each([&](flecs::entity e, Player& player, PlayerControl& control, Transform& transform, GPUIndex& gpuIndex) {
         glm::vec2 velocity = direction * player.speed;
         control.desiredVelocity = velocity;
         control.active = (direction.x != 0.0f || direction.y != 0.0f);
+        float renderScale = std::max(transform.scale.x, transform.scale.y);
         gpuEntityManager->updateControlParamsForEntity(
             gpuIndex.index,
-            glm::vec4(control.desiredVelocity.x, control.desiredVelocity.y, 1.0f, control.renderScale)
+            glm::vec4(control.desiredVelocity.x, control.desiredVelocity.y, 1.0f, renderScale)
         );
     });
 }
