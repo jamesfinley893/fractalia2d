@@ -21,6 +21,7 @@ struct GPUEntitySoA {
     std::vector<glm::vec4> runtimeStates;     // totalTime, initialized, stateTimer, entityState
     std::vector<glm::vec4> colors;            // RGBA color
     std::vector<glm::mat4> modelMatrices;     // transform matrices (cold data)
+    std::vector<glm::vec4> controlParams;     // desiredVel.xy, controlFlag, renderScale
     
     void reserve(size_t capacity) {
         velocities.reserve(capacity);
@@ -28,6 +29,7 @@ struct GPUEntitySoA {
         runtimeStates.reserve(capacity);
         colors.reserve(capacity);
         modelMatrices.reserve(capacity);
+        controlParams.reserve(capacity);
     }
     
     void clear() {
@@ -36,6 +38,7 @@ struct GPUEntitySoA {
         runtimeStates.clear();
         colors.clear();
         modelMatrices.clear();
+        controlParams.clear();
     }
     
     size_t size() const { return velocities.size(); }
@@ -68,6 +71,7 @@ public:
     VkBuffer getColorBuffer() const { return bufferManager.getColorBuffer(); }
     VkBuffer getModelMatrixBuffer() const { return bufferManager.getModelMatrixBuffer(); }
     VkBuffer getSpatialMapBuffer() const { return bufferManager.getSpatialMapBuffer(); }
+    VkBuffer getControlParamsBuffer() const { return bufferManager.getControlParamsBuffer(); }
     
     // Position buffers remain the same
     VkBuffer getPositionBuffer() const { return bufferManager.getPositionBuffer(); }
@@ -87,6 +91,7 @@ public:
     VkDeviceSize getColorBufferSize() const { return bufferManager.getColorBufferSize(); }
     VkDeviceSize getModelMatrixBufferSize() const { return bufferManager.getModelMatrixBufferSize(); }
     VkDeviceSize getSpatialMapBufferSize() const { return bufferManager.getSpatialMapBufferSize(); }
+    VkDeviceSize getControlParamsBufferSize() const { return bufferManager.getControlParamsBufferSize(); }
     VkDeviceSize getPositionBufferSize() const { return bufferManager.getPositionBufferSize(); }
     
     
@@ -113,6 +118,7 @@ public:
 
     // Update runtime state for a specific GPU entity
     bool updateRuntimeStateForEntity(uint32_t gpuIndex, const glm::vec4& state);
+    bool updateControlParamsForEntity(uint32_t gpuIndex, const glm::vec4& params);
 
 private:
     static constexpr uint32_t MAX_ENTITIES = 131072; // 128k entities max

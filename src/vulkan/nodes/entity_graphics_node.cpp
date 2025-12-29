@@ -40,6 +40,7 @@ std::vector<ResourceDependency> EntityGraphicsNode::getInputs() const {
     return {
         {data.positionBufferId, ResourceAccess::Read, PipelineStage::VertexShader},
         {data.movementParamsBufferId, ResourceAccess::Read, PipelineStage::VertexShader},
+        {data.controlParamsBufferId, ResourceAccess::Read, PipelineStage::VertexShader},
     };
 }
 

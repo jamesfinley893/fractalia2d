@@ -20,6 +20,7 @@ public:
         FrameGraphTypes::ResourceId velocityBufferId = 0;
         FrameGraphTypes::ResourceId movementParamsBufferId = 0;
         FrameGraphTypes::ResourceId runtimeStateBufferId = 0;
+        FrameGraphTypes::ResourceId controlParamsBufferId = 0;
         FrameGraphTypes::ResourceId positionBufferId = 0;
         FrameGraphTypes::ResourceId currentPositionBufferId = 0;
         FrameGraphTypes::ResourceId targetPositionBufferId = 0;

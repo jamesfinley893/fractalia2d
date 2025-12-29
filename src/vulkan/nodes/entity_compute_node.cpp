@@ -48,6 +48,7 @@ std::vector<ResourceDependency> EntityComputeNode::getInputs() const {
         {data.velocityBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
         {data.movementParamsBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
         {data.runtimeStateBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
+        {data.controlParamsBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
     };
 }
 

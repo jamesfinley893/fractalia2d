@@ -25,6 +25,10 @@ layout(std430, binding = 2) buffer RuntimeStateBuffer {
     vec4 runtimeStates[];
 } runtimeStateBuffer;
 
+layout(std430, binding = 8) buffer ControlParamsBuffer {
+    vec4 controlParams[];  // desiredVel.xy, controlFlag, renderScale
+} controlParamsBuffer;
+
 // Position buffers are not used by movement shader - only physics shader uses them
 // This shader only updates velocity every 900 frames
 
@@ -95,12 +99,13 @@ void main() {
     // Load entity data from SoA buffers - much better cache locality
     vec4 velocity = velocityBuffer.velocities[entityIndex];
     
-    vec4 movementParams = movementParamsBuffer.movementParams[entityIndex];
-    
+    vec4 controlParams = controlParamsBuffer.controlParams[entityIndex];
+
     // Skip GPU-driven random walk for manually controlled entities
-    if (velocity.w > 0.5 || movementParams.w < -900.0) {
+    if (controlParams.z > 0.5) {
         return;
     }
+    vec4 movementParams = movementParamsBuffer.movementParams[entityIndex];
     vec4 runtimeState = runtimeStateBuffer.runtimeStates[entityIndex];
     
     // Extract movement parameters

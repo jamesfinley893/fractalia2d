@@ -44,6 +44,7 @@ bool RenderFrameDirector::initialize(
             velocityBufferId,
             movementParamsBufferId,
             runtimeStateBufferId,
+            controlParamsBufferId,
             positionBufferId,
             currentPositionBufferId,
             targetPositionBufferId,
@@ -61,6 +62,7 @@ bool RenderFrameDirector::initialize(
             positionBufferId,
             currentPositionBufferId,
             targetPositionBufferId,
+            controlParamsBufferId,
             ctx.pipelineSystem ? ctx.pipelineSystem->getComputeManager() : nullptr,
             ctx.gpuEntityManager
         };
@@ -71,6 +73,7 @@ bool RenderFrameDirector::initialize(
         EntityGraphicsNode::Data graphicsData{
             positionBufferId,
             movementParamsBufferId,
+            controlParamsBufferId,
             0,
             ctx.pipelineSystem ? ctx.pipelineSystem->getGraphicsManager() : nullptr,
             ctx.swapchain,
@@ -136,6 +139,7 @@ void RenderFrameDirector::updateResourceIds(
     FrameGraphTypes::ResourceId colorBufferId,
     FrameGraphTypes::ResourceId modelMatrixBufferId,
     FrameGraphTypes::ResourceId spatialMapBufferId,
+    FrameGraphTypes::ResourceId controlParamsBufferId,
     FrameGraphTypes::ResourceId positionBufferId,
     FrameGraphTypes::ResourceId currentPositionBufferId,
     FrameGraphTypes::ResourceId targetPositionBufferId
@@ -146,6 +150,7 @@ void RenderFrameDirector::updateResourceIds(
     this->colorBufferId = colorBufferId;
     this->modelMatrixBufferId = modelMatrixBufferId;
     this->spatialMapBufferId = spatialMapBufferId;
+    this->controlParamsBufferId = controlParamsBufferId;
     this->positionBufferId = positionBufferId;
     this->currentPositionBufferId = currentPositionBufferId;
     this->targetPositionBufferId = targetPositionBufferId;

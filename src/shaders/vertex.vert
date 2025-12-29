@@ -23,6 +23,10 @@ layout(std430, binding = 2) readonly buffer MovementParamsBuffer {
     vec4 movementParams[];  // amplitude, frequency, phase, timeOffset
 } movementParamsBuffer;
 
+layout(std430, binding = 3) readonly buffer ControlParamsBuffer {
+    vec4 controlParams[];  // desiredVel.xy, controlFlag, renderScale
+} controlParamsBuffer;
+
 
 layout(location = 0) out vec3 color;
 
@@ -52,10 +56,24 @@ void main() {
     float phase = entityMovementParams.z;
     float timeOffset = entityMovementParams.w;
     float entityTime = pc.time + timeOffset;
-    
-    // Manual-control marker: use a fixed, distinctive color
-    if (timeOffset < -900.0) {
-        color = vec3(0.1, 0.9, 1.0);
+
+    vec4 controlParams = controlParamsBuffer.controlParams[gl_InstanceIndex];
+    if (controlParams.z > 0.5) {
+        color = vec3(1.0, 0.25, 0.1);
+        float rot = entityTime * 0.1;
+        mat4 rotationMatrix = mat4(
+            cos(rot),  sin(rot), 0, 0,
+           -sin(rot),  cos(rot), 0, 0,
+            0,         0,        1, 0,
+            worldPos,             1
+        );
+        gl_Position = ubo.proj * ubo.view * rotationMatrix * vec4(inPos * controlParams.w, 1.0);
+        return;
+    }
+
+    // Player marker: negative amplitude indicates special rendering
+    if (entityMovementParams.x < 0.0) {
+        color = vec3(1.0, 0.25, 0.1);
         float rot = entityTime * 0.1;
         mat4 rotationMatrix = mat4(
             cos(rot),  sin(rot), 0, 0,
@@ -66,7 +84,7 @@ void main() {
         gl_Position = ubo.proj * ubo.view * rotationMatrix * vec4(inPos * 1.8, 1.0);
         return;
     }
-
+    
     // Calculate dynamic color based on movement parameters with strong per-entity individualization
     // Use instance index to create much stronger base color variation per entity
     float entityBaseHue = mod(float(gl_InstanceIndex) * 0.618034, 1.0); // Golden ratio for good distribution

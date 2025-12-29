@@ -22,6 +22,7 @@ public:
     struct Data {
         FrameGraphTypes::ResourceId positionBufferId = 0;
         FrameGraphTypes::ResourceId movementParamsBufferId = 0;
+        FrameGraphTypes::ResourceId controlParamsBufferId = 0;
         FrameGraphTypes::ResourceId colorTargetId = 0;
         GraphicsPipelineManager* graphicsManager = nullptr;
         VulkanSwapchain* swapchain = nullptr;

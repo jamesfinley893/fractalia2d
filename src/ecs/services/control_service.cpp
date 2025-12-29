@@ -664,7 +664,7 @@ void GameControlService::handleCameraControls() {
 }
 
 void GameControlService::updatePlayerMovement() {
-    if (!inputService || !renderer || !world) {
+    if (!renderer || !world) {
         return;
     }
 
@@ -673,17 +673,33 @@ void GameControlService::updatePlayerMovement() {
         return;
     }
 
+    auto inputEntity = world->lookup("InputEntity");
+    if (!inputEntity.is_valid()) {
+        return;
+    }
+
+    const auto* inputState = inputEntity.get<InputState>();
+    if (inputState && !inputState->processKeyboard) {
+        return;
+    }
+
+    const auto* keyboardInput = inputEntity.get<KeyboardInput>();
+    if (!keyboardInput) {
+        return;
+    }
+
     glm::vec2 direction(0.0f);
-    if (inputService->isKeyDown(SDL_SCANCODE_LEFT)) {
+    // Player movement uses raw key state to avoid input context conflicts.
+    if (keyboardInput->isKeyDown(SDL_SCANCODE_LEFT)) {
         direction.x -= 1.0f;
     }
-    if (inputService->isKeyDown(SDL_SCANCODE_RIGHT)) {
+    if (keyboardInput->isKeyDown(SDL_SCANCODE_RIGHT)) {
         direction.x += 1.0f;
     }
-    if (inputService->isKeyDown(SDL_SCANCODE_UP)) {
+    if (keyboardInput->isKeyDown(SDL_SCANCODE_UP)) {
         direction.y += 1.0f;
     }
-    if (inputService->isKeyDown(SDL_SCANCODE_DOWN)) {
+    if (keyboardInput->isKeyDown(SDL_SCANCODE_DOWN)) {
         direction.y -= 1.0f;
     }
 
@@ -691,12 +707,13 @@ void GameControlService::updatePlayerMovement() {
         direction = glm::normalize(direction);
     }
 
-    world->each([&](flecs::entity e, Player& player, GPUIndex& gpuIndex) {
+    world->each([&](flecs::entity e, Player& player, PlayerControl& control, GPUIndex& gpuIndex) {
         glm::vec2 velocity = direction * player.speed;
-        gpuEntityManager->updateVelocityForEntity(gpuIndex.index, velocity, 1.0f, true);
-        gpuEntityManager->updateMovementParamsForEntity(
+        control.desiredVelocity = velocity;
+        control.active = (direction.x != 0.0f || direction.y != 0.0f);
+        gpuEntityManager->updateControlParamsForEntity(
             gpuIndex.index,
-            glm::vec4(velocity.x, velocity.y, 0.0f, -999.0f)
+            glm::vec4(control.desiredVelocity.x, control.desiredVelocity.y, 1.0f, control.renderScale)
         );
     });
 }
@@ -759,6 +776,7 @@ void GameControlService::printControlInstructions() const {
     std::cout << "WASD: Move camera" << std::endl;
     std::cout << "Right Click: Debug entity info at mouse position" << std::endl;
     std::cout << "Mouse Wheel: Zoom camera" << std::endl;
+    std::cout << "Arrow Keys: Move player" << std::endl;
     std::cout << "===============================================\n" << std::endl;
 }
 

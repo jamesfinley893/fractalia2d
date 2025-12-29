@@ -43,6 +43,9 @@ void GPUEntitySoA::addFromECS(const Transform& transform, const Renderable& rend
     
     // Model matrix  
     modelMatrices.emplace_back(transform.getMatrix());
+
+    // Default control params: no control, unit scale
+    controlParams.emplace_back(0.0f, 0.0f, 0.0f, 1.0f);
 }
 
 
@@ -115,6 +118,11 @@ void GPUEntityManager::addEntitiesFromECS(const std::vector<flecs::entity>& enti
 
             if (entity.has<Player>()) {
                 stagingEntities.velocities.back().w = 1.0f; // Mark as manually controlled
+                float renderScale = 1.8f;
+                if (const auto* control = entity.get<PlayerControl>()) {
+                    renderScale = control->renderScale;
+                }
+                stagingEntities.controlParams.back() = glm::vec4(0.0f, 0.0f, 1.0f, renderScale);
             }
             entity.set<GPUIndex>({gpuIndex});
         }
@@ -134,12 +142,14 @@ void GPUEntityManager::uploadPendingEntities() {
     VkDeviceSize runtimeStateOffset = activeEntityCount * sizeof(glm::vec4);
     VkDeviceSize colorOffset = activeEntityCount * sizeof(glm::vec4);
     VkDeviceSize modelMatrixOffset = activeEntityCount * sizeof(glm::mat4);
+    VkDeviceSize controlParamsOffset = activeEntityCount * sizeof(glm::vec4);
     
     VkDeviceSize velocitySize = entityCount * sizeof(glm::vec4);
     VkDeviceSize movementParamsSize = entityCount * sizeof(glm::vec4);
     VkDeviceSize runtimeStateSize = entityCount * sizeof(glm::vec4);
     VkDeviceSize colorSize = entityCount * sizeof(glm::vec4);
     VkDeviceSize modelMatrixSize = entityCount * sizeof(glm::mat4);
+    VkDeviceSize controlParamsSize = entityCount * sizeof(glm::vec4);
     
     // Copy SoA data to GPU buffers using new typed upload methods
     bufferManager.uploadVelocityData(stagingEntities.velocities.data(), velocitySize, velocityOffset);
@@ -147,6 +157,7 @@ void GPUEntityManager::uploadPendingEntities() {
     bufferManager.uploadRuntimeStateData(stagingEntities.runtimeStates.data(), runtimeStateSize, runtimeStateOffset);
     bufferManager.uploadColorData(stagingEntities.colors.data(), colorSize, colorOffset);
     bufferManager.uploadModelMatrixData(stagingEntities.modelMatrices.data(), modelMatrixSize, modelMatrixOffset);
+    bufferManager.uploadControlParamsData(stagingEntities.controlParams.data(), controlParamsSize, controlParamsOffset);
     
     // Initialize position buffers with spawn positions
     std::vector<glm::vec4> initialPositions;
@@ -217,4 +228,13 @@ bool GPUEntityManager::updateRuntimeStateForEntity(uint32_t gpuIndex, const glm:
 
     VkDeviceSize offset = static_cast<VkDeviceSize>(gpuIndex) * sizeof(glm::vec4);
     return bufferManager.uploadRuntimeStateData(&state, sizeof(state), offset);
+}
+
+bool GPUEntityManager::updateControlParamsForEntity(uint32_t gpuIndex, const glm::vec4& params) {
+    if (gpuIndex >= activeEntityCount) {
+        return false;
+    }
+
+    VkDeviceSize offset = static_cast<VkDeviceSize>(gpuIndex) * sizeof(glm::vec4);
+    return bufferManager.uploadControlParamsData(&params, sizeof(params), offset);
 }

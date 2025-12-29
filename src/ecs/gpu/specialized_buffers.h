@@ -99,3 +99,16 @@ public:
 protected:
     const char* getBufferTypeName() const override { return "SpatialMap"; }
 };
+
+// SINGLE responsibility: per-entity control parameters
+class ControlParamsBuffer : public BufferBase {
+public:
+    using BufferBase::initialize; // Bring base class initialize into scope
+
+    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxEntities) {
+        return BufferBase::initialize(context, resourceCoordinator, maxEntities, sizeof(glm::vec4), 0);
+    }
+
+protected:
+    const char* getBufferTypeName() const override { return "ControlParams"; }
+};

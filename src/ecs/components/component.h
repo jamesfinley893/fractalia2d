@@ -100,6 +100,13 @@ struct Player {
     float speed{1.5f};
 };
 
+// Per-player control state driven by CPU input
+struct PlayerControl {
+    glm::vec2 desiredVelocity{0.0f};
+    bool active{false};
+    float renderScale{1.0f};
+};
+
 // GPU index mapping for per-entity GPU updates
 struct GPUIndex {
     uint32_t index{0};

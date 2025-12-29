@@ -69,6 +69,13 @@ bool FrameGraphResourceRegistry::importEntityResources() {
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
     );
 
+    controlParamsBufferId = frameGraph->importExternalBuffer(
+        "ControlParamsBuffer",
+        gpuEntityManager->getControlParamsBuffer(),
+        gpuEntityManager->getControlParamsBufferSize(),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    );
+
     // Import position buffer
     positionBufferId = frameGraph->importExternalBuffer(
         "PositionBuffer",

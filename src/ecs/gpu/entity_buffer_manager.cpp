@@ -67,6 +67,11 @@ bool EntityBufferManager::initialize(const VulkanContext& context, ResourceCoord
         std::cerr << "EntityBufferManager: Failed to initialize position coordinator" << std::endl;
         return false;
     }
+
+    if (!controlParamsBuffer.initialize(context, resourceCoordinator, maxEntities)) {
+        std::cerr << "EntityBufferManager: Failed to initialize control params buffer" << std::endl;
+        return false;
+    }
     
     std::cout << "EntityBufferManager: Initialized successfully for " << maxEntities << " entities using SRP-compliant design" << std::endl;
     return true;
@@ -81,6 +86,7 @@ void EntityBufferManager::cleanup() {
     runtimeStateBuffer.cleanup();
     movementParamsBuffer.cleanup();
     velocityBuffer.cleanup();
+    controlParamsBuffer.cleanup();
     uploadService.cleanup();
     
     maxEntities = 0;
@@ -109,6 +115,10 @@ bool EntityBufferManager::uploadModelMatrixData(const void* data, VkDeviceSize s
 
 bool EntityBufferManager::uploadSpatialMapData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
     return uploadService.upload(spatialMapBuffer, data, size, offset);
+}
+
+bool EntityBufferManager::uploadControlParamsData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
+    return uploadService.upload(controlParamsBuffer, data, size, offset);
 }
 
 bool EntityBufferManager::uploadPositionDataToAllBuffers(const void* data, VkDeviceSize size, VkDeviceSize offset) {

@@ -18,12 +18,16 @@ layout(std430, binding = 0) buffer VelocityBuffer {
 } velocityBuffer;
 
 layout(std430, binding = 1) buffer MovementParamsBuffer {
-    vec4 movementParams[];  // For player control override
+    vec4 movementParams[];  // Shared layout; unused in this shader
 } movementParamsBuffer;
 
 layout(std430, binding = 2) buffer RuntimeStateBuffer {
     vec4 runtimeStates[];  // R/W: totalTime, reserved, stateTimer, initialized
 } runtimeStateBuffer;
+
+layout(std430, binding = 8) buffer ControlParamsBuffer {
+    vec4 controlParams[];  // desiredVel.xy, controlFlag, renderScale
+} controlParamsBuffer;
 
 // Physics-specific buffers
 layout(std430, binding = 3) buffer PositionBuffer {
@@ -212,17 +216,16 @@ void main() {
     // Load entity data from SoA buffers - better cache locality
     vec4 velocity = velocityBuffer.velocities[entityIndex];
     vec4 runtimeState = runtimeStateBuffer.runtimeStates[entityIndex];
-    vec4 movementParams = movementParamsBuffer.movementParams[entityIndex];
-    
     float initialized = runtimeState.w; // initialized flag is in .w
     
     // Extract velocity and damping
     vec2 vel = velocity.xy;
     float damping = velocity.z;
     
-    // Player override: movementParams.w marks manual control; xy holds desired velocity
-    if (movementParams.w < -900.0) {
-        vel = movementParams.xy;
+    // Player override: controlParams.z marks manual control; xy holds desired velocity
+    vec4 control = controlParamsBuffer.controlParams[entityIndex];
+    if (control.z > 0.5) {
+        vel = control.xy;
         damping = 1.0;
     }
     

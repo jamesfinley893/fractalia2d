@@ -59,6 +59,7 @@ public:
         FrameGraphTypes::ResourceId colorBufferId,
         FrameGraphTypes::ResourceId modelMatrixBufferId,
         FrameGraphTypes::ResourceId spatialMapBufferId,
+        FrameGraphTypes::ResourceId controlParamsBufferId,
         FrameGraphTypes::ResourceId positionBufferId,
         FrameGraphTypes::ResourceId currentPositionBufferId,
         FrameGraphTypes::ResourceId targetPositionBufferId
@@ -88,6 +89,7 @@ private:
     FrameGraphTypes::ResourceId colorBufferId = 0;
     FrameGraphTypes::ResourceId modelMatrixBufferId = 0;
     FrameGraphTypes::ResourceId spatialMapBufferId = 0;
+    FrameGraphTypes::ResourceId controlParamsBufferId = 0;
     FrameGraphTypes::ResourceId positionBufferId = 0;
     FrameGraphTypes::ResourceId currentPositionBufferId = 0;
     FrameGraphTypes::ResourceId targetPositionBufferId = 0;

@@ -557,8 +557,16 @@ namespace DescriptorLayoutPresets {
         positionBinding.descriptorCount = 1;
         positionBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
         positionBinding.debugName = "positionBuffer";
+
+        // Storage buffer for control params
+        DescriptorBinding controlBinding{};
+        controlBinding.binding = 3;
+        controlBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        controlBinding.descriptorCount = 1;
+        controlBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        controlBinding.debugName = "controlParamsBuffer";
         
-        spec.bindings = {uboBinding, entityBinding, positionBinding};
+        spec.bindings = {uboBinding, entityBinding, positionBinding, controlBinding};
         return spec;
     }
     
@@ -607,6 +615,22 @@ namespace DescriptorLayoutPresets {
         currentPosBinding.descriptorCount = 1;
         currentPosBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
         currentPosBinding.debugName = "currentPositionBuffer";
+
+        // Binding 5: ColorBuffer (entity colors)
+        DescriptorBinding colorBinding{};
+        colorBinding.binding = 5;
+        colorBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        colorBinding.descriptorCount = 1;
+        colorBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        colorBinding.debugName = "colorBuffer";
+
+        // Binding 6: ModelMatrixBuffer (entity transforms)
+        DescriptorBinding modelMatrixBinding{};
+        modelMatrixBinding.binding = 6;
+        modelMatrixBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        modelMatrixBinding.descriptorCount = 1;
+        modelMatrixBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        modelMatrixBinding.debugName = "modelMatrixBuffer";
         
         // Binding 7: SpatialMapBuffer (spatial hash grid for collision detection)
         DescriptorBinding spatialMapBinding{};
@@ -615,8 +639,16 @@ namespace DescriptorLayoutPresets {
         spatialMapBinding.descriptorCount = 1;
         spatialMapBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
         spatialMapBinding.debugName = "spatialMapBuffer";
+
+        // Binding 8: ControlParamsBuffer (player control)
+        DescriptorBinding controlParamsBinding{};
+        controlParamsBinding.binding = 8;
+        controlParamsBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        controlParamsBinding.descriptorCount = 1;
+        controlParamsBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        controlParamsBinding.debugName = "controlParamsBuffer";
         
-        spec.bindings = {velocityBinding, movementParamsBinding, runtimeStateBinding, positionOutputBinding, currentPosBinding, spatialMapBinding};
+        spec.bindings = {velocityBinding, movementParamsBinding, runtimeStateBinding, positionOutputBinding, currentPosBinding, colorBinding, modelMatrixBinding, spatialMapBinding, controlParamsBinding};
         return spec;
     }
 }

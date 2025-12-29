@@ -169,9 +169,7 @@ int main(int argc, char* argv[]) {
 
     flecs::entity playerEntity = entityFactory.createExactEntity(glm::vec3(0.0f, 0.0f, 0.0f));
     playerEntity.set<Player>({2.0f});
-    if (auto* pattern = playerEntity.get_mut<MovementPattern>()) {
-        pattern->timeOffset = -999.0f;
-    }
+    playerEntity.set<PlayerControl>({glm::vec2(0.0f), false, 1.8f});
     if (auto* renderable = playerEntity.get_mut<Renderable>()) {
         renderable->color = glm::vec4(1.0f, 0.2f, 0.1f, 1.0f);
         renderable->markDirty();
@@ -182,11 +180,10 @@ int main(int argc, char* argv[]) {
     gpuEntityManager->addEntitiesFromECS({playerEntity});
     gpuEntityManager->uploadPendingEntities();
     if (auto* gpuIndex = playerEntity.get<GPUIndex>()) {
-        gpuEntityManager->updateMovementParamsForEntity(
+        gpuEntityManager->updateControlParamsForEntity(
             gpuIndex->index,
-            glm::vec4(1.0f, 1.0f, 0.0f, -999.0f)
+            glm::vec4(0.0f, 0.0f, 1.0f, 1.8f)
         );
-        gpuEntityManager->updateVelocityForEntity(gpuIndex->index, glm::vec2(0.0f), 1.0f, true);
         gpuEntityManager->updateRuntimeStateForEntity(gpuIndex->index, glm::vec4(0.0f, 2.0f, 0.0f, 1.0f));
     }
     DEBUG_LOG("Total services active: " << ServiceLocator::instance().getServiceCount());
