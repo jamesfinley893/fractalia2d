@@ -7,6 +7,7 @@
 #include <flecs.h>
 #include "../core/vulkan_constants.h"
 #include "../rendering/frame_graph.h"
+#include "../rendering/pass_registry.h"
 
 // Forward declarations
 class VulkanContext;
@@ -104,6 +105,8 @@ private:
     FrameGraphTypes::NodeId physicsNodeId = 0;
     FrameGraphTypes::NodeId graphicsNodeId = 0;
     FrameGraphTypes::NodeId presentNodeId = 0;
+
+    RenderPassRegistry passRegistry;
 
     // Helper methods
     void setupFrameGraph(uint32_t imageIndex);

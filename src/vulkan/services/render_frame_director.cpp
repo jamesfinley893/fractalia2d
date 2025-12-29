@@ -39,6 +39,51 @@ bool RenderFrameDirector::initialize(
     this->frameGraph = frameGraph;
     this->presentationSurface = presentationSurface;
 
+    passRegistry.registerPass("EntityCompute", [this](FrameGraph& graph, const RenderPassContext& ctx) {
+        EntityComputeNode::Data computeData{
+            velocityBufferId,
+            movementParamsBufferId,
+            runtimeStateBufferId,
+            positionBufferId,
+            currentPositionBufferId,
+            targetPositionBufferId,
+            ctx.pipelineSystem ? ctx.pipelineSystem->getComputeManager() : nullptr,
+            ctx.gpuEntityManager
+        };
+        computeNodeId = graph.addNode<EntityComputeNode>(computeData);
+    });
+
+    passRegistry.registerPass("PhysicsCompute", [this](FrameGraph& graph, const RenderPassContext& ctx) {
+        PhysicsComputeNode::Data physicsData{
+            velocityBufferId,
+            runtimeStateBufferId,
+            spatialMapBufferId,
+            positionBufferId,
+            currentPositionBufferId,
+            targetPositionBufferId,
+            ctx.pipelineSystem ? ctx.pipelineSystem->getComputeManager() : nullptr,
+            ctx.gpuEntityManager
+        };
+        physicsNodeId = graph.addNode<PhysicsComputeNode>(physicsData);
+    });
+
+    passRegistry.registerPass("EntityGraphics", [this](FrameGraph& graph, const RenderPassContext& ctx) {
+        EntityGraphicsNode::Data graphicsData{
+            positionBufferId,
+            movementParamsBufferId,
+            0,
+            ctx.pipelineSystem ? ctx.pipelineSystem->getGraphicsManager() : nullptr,
+            ctx.swapchain,
+            ctx.resourceCoordinator,
+            ctx.gpuEntityManager
+        };
+        graphicsNodeId = graph.addNode<EntityGraphicsNode>(graphicsData);
+    });
+
+    passRegistry.registerPass("SwapchainPresent", [this](FrameGraph& graph, const RenderPassContext& ctx) {
+        presentNodeId = graph.addNode<SwapchainPresentNode>(0, ctx.swapchain);
+    });
+
     return true;
 }
 
@@ -137,49 +182,15 @@ void RenderFrameDirector::setupFrameGraph(uint32_t imageIndex) {
     
     // Add nodes to frame graph only once during initialization
     if (needsInitialization) {
-        // Movement compute node (sets velocity every 900 frames)
-        EntityComputeNode::Data computeData{
-            velocityBufferId,
-            movementParamsBufferId,
-            runtimeStateBufferId,
-            positionBufferId,
-            currentPositionBufferId,
-            targetPositionBufferId,
-            pipelineSystem->getComputeManager(),
-            gpuEntityManager
-        };
-        computeNodeId = frameGraph->addNode<EntityComputeNode>(computeData);
-        
-        // Physics compute node (updates positions based on velocity every frame)
-        PhysicsComputeNode::Data physicsData{
-            velocityBufferId,
-            runtimeStateBufferId,
-            spatialMapBufferId,
-            positionBufferId,
-            currentPositionBufferId,
-            targetPositionBufferId,
-            pipelineSystem->getComputeManager(),
-            gpuEntityManager
-        };
-        physicsNodeId = frameGraph->addNode<PhysicsComputeNode>(physicsData);
-        
-        // ELEGANT SOLUTION: Pass a dynamic swapchain image reference
-        // Nodes will resolve the actual resource ID at execution time
-        EntityGraphicsNode::Data graphicsData{
-            positionBufferId,
-            movementParamsBufferId,
-            0,
-            pipelineSystem->getGraphicsManager(),
+        RenderPassContext passContext{
+            context,
             swapchain,
+            pipelineSystem,
             resourceCoordinator,
-            gpuEntityManager
+            gpuEntityManager,
+            frameGraph
         };
-        graphicsNodeId = frameGraph->addNode<EntityGraphicsNode>(graphicsData);
-        
-        presentNodeId = frameGraph->addNode<SwapchainPresentNode>(
-            0, // Placeholder - will be resolved dynamically  
-            swapchain
-        );
+        passRegistry.build(*frameGraph, passContext);
         
         // Mark as initialized after nodes are added
         frameGraphInitialized = true;
