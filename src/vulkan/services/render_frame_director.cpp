@@ -138,7 +138,7 @@ void RenderFrameDirector::setupFrameGraph(uint32_t imageIndex) {
     // Add nodes to frame graph only once during initialization
     if (needsInitialization) {
         // Movement compute node (sets velocity every 900 frames)
-        computeNodeId = frameGraph->addNode<EntityComputeNode>(
+        EntityComputeNode::Data computeData{
             velocityBufferId,
             movementParamsBufferId,
             runtimeStateBufferId,
@@ -147,10 +147,11 @@ void RenderFrameDirector::setupFrameGraph(uint32_t imageIndex) {
             targetPositionBufferId,
             pipelineSystem->getComputeManager(),
             gpuEntityManager
-        );
+        };
+        computeNodeId = frameGraph->addNode<EntityComputeNode>(computeData);
         
         // Physics compute node (updates positions based on velocity every frame)
-        physicsNodeId = frameGraph->addNode<PhysicsComputeNode>(
+        PhysicsComputeNode::Data physicsData{
             velocityBufferId,
             runtimeStateBufferId,
             spatialMapBufferId,
@@ -159,7 +160,8 @@ void RenderFrameDirector::setupFrameGraph(uint32_t imageIndex) {
             targetPositionBufferId,
             pipelineSystem->getComputeManager(),
             gpuEntityManager
-        );
+        };
+        physicsNodeId = frameGraph->addNode<PhysicsComputeNode>(physicsData);
         
         // ELEGANT SOLUTION: Pass a dynamic swapchain image reference
         // Nodes will resolve the actual resource ID at execution time

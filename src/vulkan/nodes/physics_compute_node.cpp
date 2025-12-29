@@ -36,61 +36,44 @@ namespace {
     }
 }
 
-PhysicsComputeNode::PhysicsComputeNode(
-    FrameGraphTypes::ResourceId velocityBuffer,
-    FrameGraphTypes::ResourceId runtimeStateBuffer,
-    FrameGraphTypes::ResourceId spatialMapBuffer,
-    FrameGraphTypes::ResourceId positionBuffer,
-    FrameGraphTypes::ResourceId currentPositionBuffer,
-    FrameGraphTypes::ResourceId targetPositionBuffer,
-    ComputePipelineManager* computeManager,
-    GPUEntityManager* gpuEntityManager,
-    std::shared_ptr<GPUTimeoutDetector> timeoutDetector
-) : velocityBufferId(velocityBuffer)
-  , runtimeStateBufferId(runtimeStateBuffer)
-  , spatialMapBufferId(spatialMapBuffer)
-  , positionBufferId(positionBuffer)
-  , currentPositionBufferId(currentPositionBuffer)
-  , targetPositionBufferId(targetPositionBuffer)
-  , computeManager(computeManager)
-  , gpuEntityManager(gpuEntityManager)
-  , timeoutDetector(timeoutDetector) {
+PhysicsComputeNode::PhysicsComputeNode(const Data& data)
+    : data(data) {
     
     // Validate dependencies during construction for fail-fast behavior
-    if (!computeManager) {
+    if (!this->data.computeManager) {
         throw std::invalid_argument("PhysicsComputeNode: computeManager cannot be null");
     }
-    if (!gpuEntityManager) {
+    if (!this->data.gpuEntityManager) {
         throw std::invalid_argument("PhysicsComputeNode: gpuEntityManager cannot be null");
     }
 }
 
 std::vector<ResourceDependency> PhysicsComputeNode::getInputs() const {
     return {
-        {velocityBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
-        {runtimeStateBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
-        {currentPositionBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
-        {spatialMapBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
+        {data.velocityBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
+        {data.runtimeStateBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
+        {data.currentPositionBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
+        {data.spatialMapBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
     };
 }
 
 std::vector<ResourceDependency> PhysicsComputeNode::getOutputs() const {
     return {
-        {velocityBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
-        {runtimeStateBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
-        {positionBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
-        {currentPositionBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
-        {spatialMapBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
+        {data.velocityBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
+        {data.runtimeStateBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
+        {data.positionBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
+        {data.currentPositionBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
+        {data.spatialMapBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
     };
 }
 
 bool PhysicsComputeNode::ensurePipeline() {
-    if (!computeManager) {
+    if (!data.computeManager) {
         return false;
     }
 
     auto layoutSpec = DescriptorLayoutPresets::createEntityComputeLayout();
-    VkDescriptorSetLayout descriptorLayout = computeManager->getLayoutManager()->getLayout(layoutSpec);
+    VkDescriptorSetLayout descriptorLayout = data.computeManager->getLayoutManager()->getLayout(layoutSpec);
     if (descriptorLayout == VK_NULL_HANDLE) {
         return false;
     }
@@ -103,8 +86,8 @@ bool PhysicsComputeNode::ensurePipeline() {
     }
 
     ComputePipelineState pipelineState = ComputePipelinePresets::createPhysicsState(descriptorLayout);
-    VkPipeline pipeline = computeManager->getPipeline(pipelineState);
-    VkPipelineLayout pipelineLayout = computeManager->getPipelineLayout(pipelineState);
+    VkPipeline pipeline = data.computeManager->getPipeline(pipelineState);
+    VkPipelineLayout pipelineLayout = data.computeManager->getPipelineLayout(pipelineState);
     if (pipeline == VK_NULL_HANDLE || pipelineLayout == VK_NULL_HANDLE) {
         return false;
     }
@@ -118,12 +101,12 @@ bool PhysicsComputeNode::ensurePipeline() {
 
 void PhysicsComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph& frameGraph) {
     // Validate dependencies are still valid
-    if (!computeManager || !gpuEntityManager) {
+    if (!data.computeManager || !data.gpuEntityManager) {
         std::cerr << "PhysicsComputeNode: Critical error - dependencies became null during execution" << std::endl;
         return;
     }
     
-    const uint32_t entityCount = gpuEntityManager->getEntityCount();
+    const uint32_t entityCount = data.gpuEntityManager->getEntityCount();
     if (entityCount == 0) {
         FRAME_GRAPH_DEBUG_LOG_THROTTLED(debugCounter, 1800, "PhysicsComputeNode: No entities to process");
         return;
@@ -143,7 +126,7 @@ void PhysicsComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
     dispatch.layout = cachedPipelineLayout;
     
     // Set up descriptor sets
-    VkDescriptorSet computeDescriptorSet = gpuEntityManager->getDescriptorManager().getComputeDescriptorSet();
+    VkDescriptorSet computeDescriptorSet = data.gpuEntityManager->getDescriptorManager().getComputeDescriptorSet();
     
     if (computeDescriptorSet != VK_NULL_HANDLE) {
         dispatch.descriptorSets.push_back(computeDescriptorSet);
@@ -163,15 +146,15 @@ void PhysicsComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
     uint32_t maxWorkgroupsPerDispatch = adaptiveMaxWorkgroups;
     bool shouldForceChunking = forceChunkedDispatch;
     
-    if (timeoutDetector) {
-        auto recommendation = timeoutDetector->getRecoveryRecommendation();
+    if (data.timeoutDetector) {
+        auto recommendation = data.timeoutDetector->getRecoveryRecommendation();
         if (recommendation.shouldReduceWorkload) {
             maxWorkgroupsPerDispatch = std::min(maxWorkgroupsPerDispatch, recommendation.recommendedMaxWorkgroups);
         }
         if (recommendation.shouldSplitDispatches) {
             shouldForceChunking = true;
         }
-        if (!timeoutDetector->isGPUHealthy()) {
+        if (!data.timeoutDetector->isGPUHealthy()) {
             std::cerr << "PhysicsComputeNode: GPU not healthy, reducing workload" << std::endl;
             maxWorkgroupsPerDispatch = std::min(maxWorkgroupsPerDispatch, 512u);
         }
@@ -208,8 +191,8 @@ void PhysicsComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
     if (!dispatchParams.useChunking) {
         // Single dispatch execution
         std::cout << "PhysicsComputeNode: Starting single dispatch execution..." << std::endl;
-        if (timeoutDetector) {
-            timeoutDetector->beginComputeDispatch("Physics", dispatchParams.totalWorkgroups);
+        if (data.timeoutDetector) {
+            data.timeoutDetector->beginComputeDispatch("Physics", dispatchParams.totalWorkgroups);
         }
         
         vk.vkCmdPushConstants(
@@ -218,8 +201,8 @@ void PhysicsComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
         
         vk.vkCmdDispatch(commandBuffer, dispatchParams.totalWorkgroups, 1, 1);
         
-        if (timeoutDetector) {
-            timeoutDetector->endComputeDispatch();
+        if (data.timeoutDetector) {
+            data.timeoutDetector->endComputeDispatch();
         }
         
         // Memory barrier for compute→graphics synchronization
@@ -260,9 +243,9 @@ void PhysicsComputeNode::executeChunkedDispatch(
         if (entityCount <= baseEntityOffset) break; // No more entities to process
         
         // Monitor chunk execution
-        if (timeoutDetector) {
+        if (data.timeoutDetector) {
             std::string chunkName = "Physics_Chunk" + std::to_string(chunkCount);
-            timeoutDetector->beginComputeDispatch(chunkName.c_str(), currentChunkSize);
+            data.timeoutDetector->beginComputeDispatch(chunkName.c_str(), currentChunkSize);
         }
         
         // Update push constants for this chunk
@@ -275,8 +258,8 @@ void PhysicsComputeNode::executeChunkedDispatch(
         
         vk.vkCmdDispatch(commandBuffer, currentChunkSize, 1, 1);
         
-        if (timeoutDetector) {
-            timeoutDetector->endComputeDispatch();
+        if (data.timeoutDetector) {
+            data.timeoutDetector->endComputeDispatch();
         }
         
         // Inter-chunk memory barrier
@@ -312,8 +295,8 @@ void PhysicsComputeNode::executeChunkedDispatch(
             std::cout << "[FrameGraph Debug] PhysicsComputeNode: Split dispatch into " << chunkCount 
                       << " chunks (" << maxWorkgroupsPerChunk << " max) for " << entityCount << " entities (occurrence #" << chunkLogCounter << ")" << std::endl;
             
-            if (timeoutDetector) {
-                auto stats = timeoutDetector->getStats();
+            if (data.timeoutDetector) {
+                auto stats = data.timeoutDetector->getStats();
                 std::cout << "  GPU Stats: avg=" << stats.averageDispatchTimeMs 
                           << "ms, peak=" << stats.peakDispatchTimeMs << "ms"
                           << ", warnings=" << stats.warningCount 
@@ -326,11 +309,11 @@ void PhysicsComputeNode::executeChunkedDispatch(
 // Node lifecycle implementation
 bool PhysicsComputeNode::initializeNode(const FrameGraph& frameGraph) {
     // One-time initialization - validate dependencies
-    if (!computeManager) {
+    if (!data.computeManager) {
         std::cerr << "PhysicsComputeNode: ComputePipelineManager is null" << std::endl;
         return false;
     }
-    if (!gpuEntityManager) {
+    if (!data.gpuEntityManager) {
         std::cerr << "PhysicsComputeNode: GPUEntityManager is null" << std::endl;
         return false;
     }

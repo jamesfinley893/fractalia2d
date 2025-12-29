@@ -16,17 +16,19 @@ class EntityComputeNode : public FrameGraphNode {
     DECLARE_FRAME_GRAPH_NODE(EntityComputeNode)
     
 public:
-    EntityComputeNode(
-        FrameGraphTypes::ResourceId velocityBuffer,
-        FrameGraphTypes::ResourceId movementParamsBuffer,
-        FrameGraphTypes::ResourceId runtimeStateBuffer,
-        FrameGraphTypes::ResourceId positionBuffer,
-        FrameGraphTypes::ResourceId currentPositionBuffer,
-        FrameGraphTypes::ResourceId targetPositionBuffer,
-        ComputePipelineManager* computeManager,
-        GPUEntityManager* gpuEntityManager,
-        std::shared_ptr<GPUTimeoutDetector> timeoutDetector = nullptr
-    );
+    struct Data {
+        FrameGraphTypes::ResourceId velocityBufferId = 0;
+        FrameGraphTypes::ResourceId movementParamsBufferId = 0;
+        FrameGraphTypes::ResourceId runtimeStateBufferId = 0;
+        FrameGraphTypes::ResourceId positionBufferId = 0;
+        FrameGraphTypes::ResourceId currentPositionBufferId = 0;
+        FrameGraphTypes::ResourceId targetPositionBufferId = 0;
+        ComputePipelineManager* computeManager = nullptr;
+        GPUEntityManager* gpuEntityManager = nullptr;
+        std::shared_ptr<GPUTimeoutDetector> timeoutDetector = nullptr;
+    };
+
+    explicit EntityComputeNode(const Data& data);
     
     // FrameGraphNode interface
     std::vector<ResourceDependency> getInputs() const override;
@@ -63,17 +65,7 @@ private:
         uint32_t maxWorkgroupsPerChunk,
         uint32_t entityCount);
     
-    FrameGraphTypes::ResourceId velocityBufferId;
-    FrameGraphTypes::ResourceId movementParamsBufferId;
-    FrameGraphTypes::ResourceId runtimeStateBufferId;
-    FrameGraphTypes::ResourceId positionBufferId;
-    FrameGraphTypes::ResourceId currentPositionBufferId;
-    FrameGraphTypes::ResourceId targetPositionBufferId;
-    
-    // External dependencies (not owned) - validated during execution
-    ComputePipelineManager* computeManager;
-    GPUEntityManager* gpuEntityManager;
-    std::shared_ptr<GPUTimeoutDetector> timeoutDetector;
+    Data data;
     
     // Adaptive dispatch parameters
     uint32_t adaptiveMaxWorkgroups = MAX_WORKGROUPS_PER_CHUNK;
