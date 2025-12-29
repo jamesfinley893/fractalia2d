@@ -84,6 +84,38 @@ std::vector<ResourceDependency> PhysicsComputeNode::getOutputs() const {
     };
 }
 
+bool PhysicsComputeNode::ensurePipeline() {
+    if (!computeManager) {
+        return false;
+    }
+
+    auto layoutSpec = DescriptorLayoutPresets::createEntityComputeLayout();
+    VkDescriptorSetLayout descriptorLayout = computeManager->getLayoutManager()->getLayout(layoutSpec);
+    if (descriptorLayout == VK_NULL_HANDLE) {
+        return false;
+    }
+    if (descriptorLayout != cachedDescriptorLayout) {
+        pipelineDirty = true;
+    }
+
+    if (!pipelineDirty) {
+        return cachedPipeline != VK_NULL_HANDLE && cachedPipelineLayout != VK_NULL_HANDLE;
+    }
+
+    ComputePipelineState pipelineState = ComputePipelinePresets::createPhysicsState(descriptorLayout);
+    VkPipeline pipeline = computeManager->getPipeline(pipelineState);
+    VkPipelineLayout pipelineLayout = computeManager->getPipelineLayout(pipelineState);
+    if (pipeline == VK_NULL_HANDLE || pipelineLayout == VK_NULL_HANDLE) {
+        return false;
+    }
+
+    cachedDescriptorLayout = descriptorLayout;
+    cachedPipeline = pipeline;
+    cachedPipelineLayout = pipelineLayout;
+    pipelineDirty = false;
+    return true;
+}
+
 void PhysicsComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph& frameGraph) {
     // Validate dependencies are still valid
     if (!computeManager || !gpuEntityManager) {
@@ -97,23 +129,18 @@ void PhysicsComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
         return;
     }
     
-    // Create compute pipeline state for physics
-    auto layoutSpec = DescriptorLayoutPresets::createEntityComputeLayout();
-    VkDescriptorSetLayout descriptorLayout = computeManager->getLayoutManager()->getLayout(layoutSpec);
-    ComputePipelineState pipelineState = ComputePipelinePresets::createPhysicsState(descriptorLayout);
-    
     // Set frame counter from FrameGraph for compute shader consistency
     pushConstants.frame = frameGraph.getGlobalFrameCounter();
     
-    // Create compute dispatch
-    ComputeDispatch dispatch{};
-    dispatch.pipeline = computeManager->getPipeline(pipelineState);
-    dispatch.layout = computeManager->getPipelineLayout(pipelineState);
-    
-    if (dispatch.pipeline == VK_NULL_HANDLE || dispatch.layout == VK_NULL_HANDLE) {
-        std::cerr << "PhysicsComputeNode: Failed to get physics compute pipeline or layout" << std::endl;
+    if (!ensurePipeline()) {
+        std::cerr << "PhysicsComputeNode: Failed to ensure physics compute pipeline or layout" << std::endl;
         return;
     }
+    
+    // Create compute dispatch
+    ComputeDispatch dispatch{};
+    dispatch.pipeline = cachedPipeline;
+    dispatch.layout = cachedPipelineLayout;
     
     // Set up descriptor sets
     VkDescriptorSet computeDescriptorSet = gpuEntityManager->getDescriptorManager().getComputeDescriptorSet();
@@ -307,7 +334,7 @@ bool PhysicsComputeNode::initializeNode(const FrameGraph& frameGraph) {
         std::cerr << "PhysicsComputeNode: GPUEntityManager is null" << std::endl;
         return false;
     }
-    return true;
+    return ensurePipeline();
 }
 
 void PhysicsComputeNode::prepareFrame(uint32_t frameIndex, float time, float deltaTime) {

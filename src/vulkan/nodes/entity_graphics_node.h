@@ -55,7 +55,13 @@ public:
     // Force uniform buffer update on next frame (call when camera changes)
     void markUniformBufferDirty() { uniformBufferDirty = true; }
 
+    // Pipeline cache invalidation (e.g., swapchain recreation)
+    void invalidatePipelineCache() { pipelineDirty = true; }
+
 private:
+    // Pipeline cache management
+    bool ensurePipeline();
+
     // Internal uniform buffer update
     void updateUniformBuffer();
     
@@ -92,6 +98,14 @@ private:
     
     bool uniformBufferDirty = true;  // Force update on first frame
     uint32_t lastUpdatedFrameIndex = UINT32_MAX; // Track which frame index was last updated
+
+    // Cached pipeline state (rebuilt when invalidated)
+    VkDescriptorSetLayout cachedDescriptorLayout = VK_NULL_HANDLE;
+    VkRenderPass cachedRenderPass = VK_NULL_HANDLE;
+    VkPipeline cachedPipeline = VK_NULL_HANDLE;
+    VkPipelineLayout cachedPipelineLayout = VK_NULL_HANDLE;
+    VkFormat cachedSwapchainFormat = VK_FORMAT_UNDEFINED;
+    bool pipelineDirty = true;
     
     // Debug counters - zero overhead in release builds
     mutable FrameGraphDebug::DebugCounter debugCounter{};

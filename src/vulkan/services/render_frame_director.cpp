@@ -254,7 +254,19 @@ void RenderFrameDirector::resetSwapchainCache() {
     } else {
         std::cerr << "RenderFrameDirector: WARNING - Missing gpuEntityManager or resourceCoordinator during swapchain recreation" << std::endl;
     }
-    
+
+    if (frameGraph) {
+        if (auto* graphicsNode = frameGraph->getNode<EntityGraphicsNode>(graphicsNodeId)) {
+            graphicsNode->invalidatePipelineCache();
+        }
+        if (auto* computeNode = frameGraph->getNode<EntityComputeNode>(computeNodeId)) {
+            computeNode->invalidatePipelineCache();
+        }
+        if (auto* physicsNode = frameGraph->getNode<PhysicsComputeNode>(physicsNodeId)) {
+            physicsNode->invalidatePipelineCache();
+        }
+    }
+
     // 5. That's it! Next frame will naturally import new images
     // No forced rebuilds, no stale references, no complexity
 }

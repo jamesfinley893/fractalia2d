@@ -42,7 +42,11 @@ public:
     void prepareFrame(uint32_t frameIndex, float time, float deltaTime) override;
     void releaseFrame(uint32_t frameIndex) override;
 
+    // Pipeline cache invalidation (e.g., layout cache reset)
+    void invalidatePipelineCache() { pipelineDirty = true; }
+
 private:
+    bool ensurePipeline();
     // Helper method for chunked dispatch execution
     void executeChunkedDispatch(
         VkCommandBuffer commandBuffer, 
@@ -74,6 +78,11 @@ private:
     // Frame timing data for new lifecycle
     float currentTime = 0.0f;
     float currentDeltaTime = 0.0f;
+
+    VkDescriptorSetLayout cachedDescriptorLayout = VK_NULL_HANDLE;
+    VkPipeline cachedPipeline = VK_NULL_HANDLE;
+    VkPipelineLayout cachedPipelineLayout = VK_NULL_HANDLE;
+    bool pipelineDirty = true;
     
     // Frame data for compute shader
     struct PhysicsPushConstants {

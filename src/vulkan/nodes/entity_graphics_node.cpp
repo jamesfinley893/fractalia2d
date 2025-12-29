@@ -63,6 +63,57 @@ std::vector<ResourceDependency> EntityGraphicsNode::getOutputs() const {
     };
 }
 
+bool EntityGraphicsNode::ensurePipeline() {
+    if (!graphicsManager || !swapchain) {
+        return false;
+    }
+
+    VkFormat currentFormat = swapchain->getImageFormat();
+    if (currentFormat != cachedSwapchainFormat) {
+        pipelineDirty = true;
+    }
+
+    auto layoutSpec = DescriptorLayoutPresets::createEntityGraphicsLayout();
+    VkDescriptorSetLayout descriptorLayout = graphicsManager->getLayoutManager()->getLayout(layoutSpec);
+    if (descriptorLayout == VK_NULL_HANDLE) {
+        return false;
+    }
+    if (descriptorLayout != cachedDescriptorLayout) {
+        pipelineDirty = true;
+    }
+
+    if (!pipelineDirty) {
+        return cachedPipeline != VK_NULL_HANDLE && cachedPipelineLayout != VK_NULL_HANDLE && cachedRenderPass != VK_NULL_HANDLE;
+    }
+
+    VkRenderPass renderPass = graphicsManager->createRenderPass(
+        currentFormat,
+        VK_FORMAT_UNDEFINED,
+        VK_SAMPLE_COUNT_2_BIT,
+        true
+    );
+    if (renderPass == VK_NULL_HANDLE) {
+        return false;
+    }
+
+    GraphicsPipelineState pipelineState = GraphicsPipelinePresets::createEntityRenderingState(
+        renderPass, descriptorLayout);
+
+    VkPipeline pipeline = graphicsManager->getPipeline(pipelineState);
+    VkPipelineLayout pipelineLayout = graphicsManager->getPipelineLayout(pipelineState);
+    if (pipeline == VK_NULL_HANDLE || pipelineLayout == VK_NULL_HANDLE) {
+        return false;
+    }
+
+    cachedSwapchainFormat = currentFormat;
+    cachedDescriptorLayout = descriptorLayout;
+    cachedRenderPass = renderPass;
+    cachedPipeline = pipeline;
+    cachedPipelineLayout = pipelineLayout;
+    pipelineDirty = false;
+    return true;
+}
+
 void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph& frameGraph) {
     
     // Validate dependencies are still valid
@@ -85,31 +136,8 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
         return;
     }
     
-    // Update uniform buffer with camera matrices (now handled by EntityDescriptorManager)
-    updateUniformBuffer();
-    
-    // Create graphics pipeline state for entity rendering - use same layout as ResourceContext
-    auto layoutSpec = DescriptorLayoutPresets::createEntityGraphicsLayout();
-    VkDescriptorSetLayout descriptorLayout = graphicsManager->getLayoutManager()->getLayout(layoutSpec);
-    
-    // Get the render pass that was used to create the framebuffers
-    VkRenderPass renderPass = graphicsManager->createRenderPass(
-        swapchain->getImageFormat(), 
-        VK_FORMAT_UNDEFINED,  // No depth (match VulkanRenderer setup)
-        VK_SAMPLE_COUNT_2_BIT, // MSAA samples
-        true  // Enable MSAA
-    );
-    
-    GraphicsPipelineState pipelineState = GraphicsPipelinePresets::createEntityRenderingState(
-        renderPass, descriptorLayout);
-    
-    // Get pipeline and layout
-    VkPipeline pipeline = graphicsManager->getPipeline(pipelineState);
-    
-    VkPipelineLayout pipelineLayout = graphicsManager->getPipelineLayout(pipelineState);
-    
-    if (pipeline == VK_NULL_HANDLE || pipelineLayout == VK_NULL_HANDLE) {
-        std::cerr << "EntityGraphicsNode: Failed to get graphics pipeline" << std::endl;
+    if (!ensurePipeline()) {
+        std::cerr << "EntityGraphicsNode: Failed to ensure graphics pipeline" << std::endl;
         return;
     }
     
@@ -124,7 +152,7 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
     // Begin render pass
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = renderPass;
+    renderPassInfo.renderPass = cachedRenderPass;
     renderPassInfo.framebuffer = framebuffers[imageIndex];
     renderPassInfo.renderArea.offset = {0, 0};
     renderPassInfo.renderArea.extent = swapchain->getExtent();
@@ -162,7 +190,7 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
     vk.vkCmdBindPipeline(
         commandBuffer, 
         VK_PIPELINE_BIND_POINT_GRAPHICS, 
-        pipeline
+        cachedPipeline
     );
     
     // Bind single descriptor set with unified layout (uniform + storage buffers)
@@ -172,7 +200,7 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
         vk.vkCmdBindDescriptorSets(
             commandBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
-            pipelineLayout,
+            cachedPipelineLayout,
             0, 1, &entityDescriptorSet,
             0, nullptr
         );
@@ -194,7 +222,7 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
     
     vk.vkCmdPushConstants(
         commandBuffer, 
-        pipelineLayout,
+        cachedPipelineLayout,
         VK_SHADER_STAGE_VERTEX_BIT, 
         0, sizeof(VertexPushConstants), 
         &vertexPushConstants
@@ -324,7 +352,7 @@ bool EntityGraphicsNode::initializeNode(const FrameGraph& frameGraph) {
         std::cerr << "EntityGraphicsNode: GPUEntityManager is null" << std::endl;
         return false;
     }
-    return true;
+    return ensurePipeline();
 }
 
 void EntityGraphicsNode::prepareFrame(uint32_t frameIndex, float time, float deltaTime) {

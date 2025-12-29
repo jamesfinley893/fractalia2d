@@ -75,6 +75,38 @@ std::vector<ResourceDependency> EntityComputeNode::getOutputs() const {
     };
 }
 
+bool EntityComputeNode::ensurePipeline() {
+    if (!computeManager) {
+        return false;
+    }
+
+    auto layoutSpec = DescriptorLayoutPresets::createEntityComputeLayout();
+    VkDescriptorSetLayout descriptorLayout = computeManager->getLayoutManager()->getLayout(layoutSpec);
+    if (descriptorLayout == VK_NULL_HANDLE) {
+        return false;
+    }
+    if (descriptorLayout != cachedDescriptorLayout) {
+        pipelineDirty = true;
+    }
+
+    if (!pipelineDirty) {
+        return cachedPipeline != VK_NULL_HANDLE && cachedPipelineLayout != VK_NULL_HANDLE;
+    }
+
+    ComputePipelineState pipelineState = ComputePipelinePresets::createEntityMovementState(descriptorLayout);
+    VkPipeline pipeline = computeManager->getPipeline(pipelineState);
+    VkPipelineLayout pipelineLayout = computeManager->getPipelineLayout(pipelineState);
+    if (pipeline == VK_NULL_HANDLE || pipelineLayout == VK_NULL_HANDLE) {
+        return false;
+    }
+
+    cachedDescriptorLayout = descriptorLayout;
+    cachedPipeline = pipeline;
+    cachedPipelineLayout = pipelineLayout;
+    pipelineDirty = false;
+    return true;
+}
+
 void EntityComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph& frameGraph) {
     // Validate dependencies are still valid
     if (!computeManager || !gpuEntityManager) {
@@ -88,24 +120,18 @@ void EntityComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph&
         return;
     }
     
-    // Create compute pipeline state for entity movement
-    auto layoutSpec = DescriptorLayoutPresets::createEntityComputeLayout();
-    VkDescriptorSetLayout descriptorLayout = computeManager->getLayoutManager()->getLayout(layoutSpec);
-    ComputePipelineState pipelineState = ComputePipelinePresets::createEntityMovementState(descriptorLayout);
-    
     // Set frame counter from FrameGraph for compute shader consistency
     pushConstants.frame = frameGraph.getGlobalFrameCounter();
     
-    // Create compute dispatch
-    ComputeDispatch dispatch{};
-    dispatch.pipeline = computeManager->getPipeline(pipelineState);
-    
-    dispatch.layout = computeManager->getPipelineLayout(pipelineState);
-    
-    if (dispatch.pipeline == VK_NULL_HANDLE || dispatch.layout == VK_NULL_HANDLE) {
-        std::cerr << "EntityComputeNode: Failed to get compute pipeline or layout" << std::endl;
+    if (!ensurePipeline()) {
+        std::cerr << "EntityComputeNode: Failed to ensure compute pipeline or layout" << std::endl;
         return;
     }
+    
+    // Create compute dispatch
+    ComputeDispatch dispatch{};
+    dispatch.pipeline = cachedPipeline;
+    dispatch.layout = cachedPipelineLayout;
     
     // Set up descriptor sets
     VkDescriptorSet computeDescriptorSet = gpuEntityManager->getDescriptorManager().getComputeDescriptorSet();
@@ -300,7 +326,7 @@ bool EntityComputeNode::initializeNode(const FrameGraph& frameGraph) {
         std::cerr << "EntityComputeNode: GPUEntityManager is null" << std::endl;
         return false;
     }
-    return true;
+    return ensurePipeline();
 }
 
 void EntityComputeNode::prepareFrame(uint32_t frameIndex, float time, float deltaTime) {
