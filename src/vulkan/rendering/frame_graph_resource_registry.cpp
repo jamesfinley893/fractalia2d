@@ -83,24 +83,17 @@ bool FrameGraphResourceRegistry::importEntityResources() {
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
     );
 
-    particleVelocityBufferId = frameGraph->importExternalBuffer(
-        "ParticleVelocityBuffer",
-        gpuEntityManager->getParticleVelocityBuffer(),
-        gpuEntityManager->getParticleVelocityBufferSize(),
+    nodeVelocityBufferId = frameGraph->importExternalBuffer(
+        "NodeVelocityBuffer",
+        gpuEntityManager->getNodeVelocityBuffer(),
+        gpuEntityManager->getNodeVelocityBufferSize(),
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
     );
 
-    particleInvMassBufferId = frameGraph->importExternalBuffer(
-        "ParticleInvMassBuffer",
-        gpuEntityManager->getParticleInvMassBuffer(),
-        gpuEntityManager->getParticleInvMassBufferSize(),
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-    );
-
-    particleBodyBufferId = frameGraph->importExternalBuffer(
-        "ParticleBodyBuffer",
-        gpuEntityManager->getParticleBodyBuffer(),
-        gpuEntityManager->getParticleBodyBufferSize(),
+    nodeInvMassBufferId = frameGraph->importExternalBuffer(
+        "NodeInvMassBuffer",
+        gpuEntityManager->getNodeInvMassBuffer(),
+        gpuEntityManager->getNodeInvMassBufferSize(),
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
     );
 
@@ -118,10 +111,31 @@ bool FrameGraphResourceRegistry::importEntityResources() {
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
     );
 
-    distanceConstraintBufferId = frameGraph->importExternalBuffer(
-        "DistanceConstraintBuffer",
-        gpuEntityManager->getDistanceConstraintBuffer(),
-        gpuEntityManager->getDistanceConstraintBufferSize(),
+    triangleRestBufferId = frameGraph->importExternalBuffer(
+        "TriangleRestBuffer",
+        gpuEntityManager->getTriangleRestBuffer(),
+        gpuEntityManager->getTriangleRestBufferSize(),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    );
+
+    triangleAreaBufferId = frameGraph->importExternalBuffer(
+        "TriangleAreaBuffer",
+        gpuEntityManager->getTriangleAreaBuffer(),
+        gpuEntityManager->getTriangleAreaBufferSize(),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    );
+
+    nodeForceBufferId = frameGraph->importExternalBuffer(
+        "NodeForceBuffer",
+        gpuEntityManager->getNodeForceBuffer(),
+        gpuEntityManager->getNodeForceBufferSize(),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    );
+
+    nodeRestBufferId = frameGraph->importExternalBuffer(
+        "NodeRestBuffer",
+        gpuEntityManager->getNodeRestBuffer(),
+        gpuEntityManager->getNodeRestBufferSize(),
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
     );
 

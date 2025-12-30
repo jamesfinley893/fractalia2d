@@ -32,12 +32,14 @@ public:
     VkBuffer getSpatialMapBuffer() const { return spatialMapBuffer.getBuffer(); }
     VkBuffer getControlParamsBuffer() const { return controlParamsBuffer.getBuffer(); }
     VkBuffer getSpatialNextBuffer() const { return spatialNextBuffer.getBuffer(); }
-    VkBuffer getParticleVelocityBuffer() const { return particleVelocityBuffer.getBuffer(); }
-    VkBuffer getParticleInvMassBuffer() const { return particleInvMassBuffer.getBuffer(); }
-    VkBuffer getParticleBodyBuffer() const { return particleBodyBuffer.getBuffer(); }
+    VkBuffer getNodeVelocityBuffer() const { return nodeVelocityBuffer.getBuffer(); }
+    VkBuffer getNodeInvMassBuffer() const { return nodeInvMassBuffer.getBuffer(); }
     VkBuffer getBodyDataBuffer() const { return bodyDataBuffer.getBuffer(); }
     VkBuffer getBodyParamsBuffer() const { return bodyParamsBuffer.getBuffer(); }
-    VkBuffer getDistanceConstraintBuffer() const { return distanceConstraintBuffer.getBuffer(); }
+    VkBuffer getTriangleRestBuffer() const { return triangleRestBuffer.getBuffer(); }
+    VkBuffer getTriangleAreaBuffer() const { return triangleAreaBuffer.getBuffer(); }
+    VkBuffer getNodeForceBuffer() const { return nodeForceBuffer.getBuffer(); }
+    VkBuffer getNodeRestBuffer() const { return nodeRestBuffer.getBuffer(); }
     
     // Position buffers - delegated to coordinator
     VkBuffer getPositionBuffer() const { return positionCoordinator.getPrimaryBuffer(); }
@@ -59,16 +61,17 @@ public:
     VkDeviceSize getSpatialMapBufferSize() const { return spatialMapBuffer.getSize(); }
     VkDeviceSize getControlParamsBufferSize() const { return controlParamsBuffer.getSize(); }
     VkDeviceSize getSpatialNextBufferSize() const { return spatialNextBuffer.getSize(); }
-    VkDeviceSize getParticleVelocityBufferSize() const { return particleVelocityBuffer.getSize(); }
-    VkDeviceSize getParticleInvMassBufferSize() const { return particleInvMassBuffer.getSize(); }
-    VkDeviceSize getParticleBodyBufferSize() const { return particleBodyBuffer.getSize(); }
+    VkDeviceSize getNodeVelocityBufferSize() const { return nodeVelocityBuffer.getSize(); }
+    VkDeviceSize getNodeInvMassBufferSize() const { return nodeInvMassBuffer.getSize(); }
     VkDeviceSize getBodyDataBufferSize() const { return bodyDataBuffer.getSize(); }
     VkDeviceSize getBodyParamsBufferSize() const { return bodyParamsBuffer.getSize(); }
-    VkDeviceSize getDistanceConstraintBufferSize() const { return distanceConstraintBuffer.getSize(); }
+    VkDeviceSize getTriangleRestBufferSize() const { return triangleRestBuffer.getSize(); }
+    VkDeviceSize getTriangleAreaBufferSize() const { return triangleAreaBuffer.getSize(); }
+    VkDeviceSize getNodeForceBufferSize() const { return nodeForceBuffer.getSize(); }
+    VkDeviceSize getNodeRestBufferSize() const { return nodeRestBuffer.getSize(); }
     VkDeviceSize getPositionBufferSize() const { return positionCoordinator.getBufferSize(); }
     uint32_t getMaxEntities() const { return maxEntities; }
-    uint32_t getMaxParticles() const { return maxParticles; }
-    uint32_t getMaxConstraints() const { return maxConstraints; }
+    uint32_t getMaxNodes() const { return maxNodes; }
     
     
     // Data upload - using shared upload service
@@ -82,12 +85,14 @@ public:
     bool uploadSpatialMapData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
     bool uploadControlParamsData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
     bool uploadSpatialNextData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
-    bool uploadParticleVelocityData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
-    bool uploadParticleInvMassData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
-    bool uploadParticleBodyData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
+    bool uploadNodeVelocityData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
+    bool uploadNodeInvMassData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
     bool uploadBodyData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
     bool uploadBodyParamsData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
-    bool uploadDistanceConstraintData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
+    bool uploadTriangleRestData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
+    bool uploadTriangleAreaData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
+    bool uploadNodeForceData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
+    bool uploadNodeRestData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
     bool uploadPositionDataToAllBuffers(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
     
     // Debug readback methods (expensive - use sparingly)
@@ -125,20 +130,21 @@ private:
     SpatialMapBuffer spatialMapBuffer;
     ControlParamsBuffer controlParamsBuffer;
     SpatialNextBuffer spatialNextBuffer;
-    ParticleVelocityBuffer particleVelocityBuffer;
-    ParticleInvMassBuffer particleInvMassBuffer;
-    ParticleBodyBuffer particleBodyBuffer;
+    NodeVelocityBuffer nodeVelocityBuffer;
+    NodeInvMassBuffer nodeInvMassBuffer;
     BodyDataBuffer bodyDataBuffer;
     BodyParamsBuffer bodyParamsBuffer;
-    DistanceConstraintBuffer distanceConstraintBuffer;
+    TriangleRestBuffer triangleRestBuffer;
+    TriangleAreaBuffer triangleAreaBuffer;
+    NodeForceBuffer nodeForceBuffer;
+    NodeRestBuffer nodeRestBuffer;
     
     // Position buffer coordination
     PositionBufferCoordinator positionCoordinator;
     
     // Shared upload service
     BufferUploadService uploadService;
-    uint32_t maxParticles = 0;
-    uint32_t maxConstraints = 0;
+    uint32_t maxNodes = 0;
     
 };
 

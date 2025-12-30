@@ -25,15 +25,17 @@ namespace EntityDescriptorBindings {
             SPATIAL_MAP_BUFFER = 7,
             CONTROL_PARAMS_BUFFER = 8,
             SPATIAL_NEXT_BUFFER = 9,
-            PARTICLE_VELOCITY_BUFFER = 10,
-            PARTICLE_INV_MASS_BUFFER = 11,
-            PARTICLE_BODY_BUFFER = 12,
-            BODY_DATA_BUFFER = 13,
-            BODY_PARAMS_BUFFER = 14,
-            DISTANCE_CONSTRAINT_BUFFER = 15
+            NODE_VELOCITY_BUFFER = 10,
+            NODE_INV_MASS_BUFFER = 11,
+            BODY_DATA_BUFFER = 12,
+            BODY_PARAMS_BUFFER = 13,
+            TRI_REST_BUFFER = 14,
+            TRI_AREA_BUFFER = 15,
+            NODE_FORCE_BUFFER = 16,
+            NODE_REST_BUFFER = 17
         };
         
-        constexpr uint32_t BINDING_COUNT = 16;
+        constexpr uint32_t BINDING_COUNT = 18;
     }
 
     // Graphics descriptor set bindings (rendering pipeline)

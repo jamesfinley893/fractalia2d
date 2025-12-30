@@ -311,18 +311,18 @@ namespace ComputePipelinePresets {
     
     ComputePipelineState createPhysicsState(VkDescriptorSetLayout descriptorLayout) {
         ComputePipelineState state{};
-        state.shaderPath = "shaders/pbd.comp.spv";
+        state.shaderPath = "shaders/fem.comp.spv";
         state.descriptorSetLayouts.push_back(descriptorLayout);
         state.workgroupSizeX = THREADS_PER_WORKGROUP;  // MUST match shader local_size_x
         state.workgroupSizeY = 1;
         state.workgroupSizeZ = 1;
         state.isFrequentlyUsed = true;
         
-        // Add push constants for time/frame data (must match PBD push constants)
+        // Add push constants for time/frame data (must match FEM push constants)
         VkPushConstantRange pushConstant{};
         pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
         pushConstant.offset = 0;
-        pushConstant.size = sizeof(float) * 2 + sizeof(uint32_t) * 6;  // time, deltaTime, bodyCount, particleCount, constraintCount, frame, elementOffset, mode
+        pushConstant.size = sizeof(float) * 2 + sizeof(uint32_t) * 6;  // time, deltaTime, bodyCount, nodeCount, frame, elementOffset, mode, padding
         state.pushConstantRanges.push_back(pushConstant);
         
         return state;

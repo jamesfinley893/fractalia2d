@@ -90,7 +90,7 @@ const uint GRID_HEIGHT = 64;
 const uint SPATIAL_MAP_SIZE = GRID_WIDTH * GRID_HEIGHT;
 const uint NULL_INDEX = 0xFFFFFFFFu;
 const uint MAX_ENTITIES_PER_CELL = 64;
-const float COLLISION_EPS = 0.0005;
+const float COLLISION_EPS = 0.00001;
 
 uint spatialHash(vec2 position) {
     ivec2 gridCoord = ivec2(floor(position / CELL_SIZE));
@@ -124,11 +124,15 @@ void integrate(uint particleIndex) {
 
     vec2 drive = velocityBuffer.velocities[bodyIndex].xy;
     vec4 control = controlParamsBuffer.controlParams[bodyIndex];
+    float driveBlend = 0.25;
     if (control.z > 0.5) {
         drive = control.xy;
+        driveBlend = 1.0;
     }
 
-    vel = mix(vel, drive, 0.15);
+    const float DRIVE_SCALE = 6.0;
+    drive *= DRIVE_SCALE;
+    vel = mix(vel, drive, driveBlend);
     pos += vel * pc.deltaTime;
 
     positionBuffer.positions[particleIndex] = vec4(pos, 0.0, 1.0);
@@ -223,6 +227,18 @@ uint collectEntitiesInCell(uint cellIndex, out uint entities[MAX_ENTITIES_PER_CE
     return count;
 }
 
+float bodyPerimeter(uint bodyIndex) {
+    uvec4 data = bodyDataBuffer.bodyData[bodyIndex];
+    uint constraintOffset = data.z;
+    uint constraintCount = data.w;
+    float perimeter = 0.0;
+    for (uint i = 0; i < constraintCount; ++i) {
+        DistanceConstraint c = distanceConstraintBuffer.constraints[constraintOffset + i];
+        perimeter += c.restLength;
+    }
+    return perimeter;
+}
+
 void collide(uint particleIndex) {
     uint bodyIndex = particleBodyBuffer.particleBodies[particleIndex];
     if (bodyIndex >= pc.bodyCount) {
@@ -231,8 +247,10 @@ void collide(uint particleIndex) {
 
     vec2 pos = positionBuffer.positions[particleIndex].xy;
     float restArea = bodyParamsBuffer.bodyParams[bodyIndex].w;
-    float baseRadius = sqrt(max(restArea, 0.0001)) * 0.35;
-    float radius = max(baseRadius, 0.1);
+    float perimeter = bodyPerimeter(bodyIndex);
+    float inradius = (perimeter > 0.0) ? (2.0 * restArea / perimeter) : 0.0;
+    float radius = max(inradius, 0.04);
+    float w1 = particleInvMassBuffer.invMasses[particleIndex];
 
     uint cellIndex = spatialHash(pos);
     const int offsets[9][2] = int[9][2](
@@ -242,6 +260,7 @@ void collide(uint particleIndex) {
         int[2](-1, 1), int[2](1, 1)
     );
 
+    vec2 correctionSum = vec2(0.0);
     for (int cellIdx = 0; cellIdx < 9; ++cellIdx) {
         int dx = offsets[cellIdx][0];
         int dy = offsets[cellIdx][1];
@@ -265,9 +284,14 @@ void collide(uint particleIndex) {
             }
 
             vec2 otherPos = positionBuffer.positions[other].xy;
+            float otherRestArea = bodyParamsBuffer.bodyParams[otherBody].w;
+            float otherPerimeter = bodyPerimeter(otherBody);
+            float otherInradius = (otherPerimeter > 0.0) ? (2.0 * otherRestArea / otherPerimeter) : 0.0;
+            float otherRadius = max(otherInradius, 0.04);
+            float w2 = particleInvMassBuffer.invMasses[other];
             vec2 diff = pos - otherPos;
             float distSq = dot(diff, diff);
-            float minDist = radius * 2.0;
+            float minDist = radius + otherRadius;
             if (distSq >= minDist * minDist) {
                 continue;
             }
@@ -275,11 +299,13 @@ void collide(uint particleIndex) {
             float dist = sqrt(max(distSq, 1e-8));
             vec2 dir = distSq < 1e-8 ? vec2(1.0, 0.0) : diff / dist;
             float penetration = minDist - dist;
-            pos += dir * (penetration * 0.5 + COLLISION_EPS);
+            float wSum = max(w1 + w2, 1e-6);
+            float selfFactor = w1 / wSum;
+            correctionSum += dir * (penetration * selfFactor + COLLISION_EPS);
         }
     }
 
-    positionBuffer.positions[particleIndex].xy = pos;
+    positionBuffer.positions[particleIndex].xy = pos + correctionSum;
 }
 
 void finalize(uint particleIndex) {

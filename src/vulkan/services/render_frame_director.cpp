@@ -65,12 +65,14 @@ bool RenderFrameDirector::initialize(
             targetPositionBufferId,
             controlParamsBufferId,
             spatialNextBufferId,
-            particleVelocityBufferId,
-            particleInvMassBufferId,
-            particleBodyBufferId,
             bodyDataBufferId,
             bodyParamsBufferId,
-            distanceConstraintBufferId,
+            nodeVelocityBufferId,
+            nodeInvMassBufferId,
+            triangleRestBufferId,
+            triangleAreaBufferId,
+            nodeForceBufferId,
+            nodeRestBufferId,
             ctx.pipelineSystem ? ctx.pipelineSystem->getComputeManager() : nullptr,
             ctx.gpuEntityManager
         };
@@ -149,12 +151,14 @@ void RenderFrameDirector::updateResourceIds(
     FrameGraphTypes::ResourceId spatialMapBufferId,
     FrameGraphTypes::ResourceId controlParamsBufferId,
     FrameGraphTypes::ResourceId spatialNextBufferId,
-    FrameGraphTypes::ResourceId particleVelocityBufferId,
-    FrameGraphTypes::ResourceId particleInvMassBufferId,
-    FrameGraphTypes::ResourceId particleBodyBufferId,
     FrameGraphTypes::ResourceId bodyDataBufferId,
     FrameGraphTypes::ResourceId bodyParamsBufferId,
-    FrameGraphTypes::ResourceId distanceConstraintBufferId,
+    FrameGraphTypes::ResourceId nodeVelocityBufferId,
+    FrameGraphTypes::ResourceId nodeInvMassBufferId,
+    FrameGraphTypes::ResourceId triangleRestBufferId,
+    FrameGraphTypes::ResourceId triangleAreaBufferId,
+    FrameGraphTypes::ResourceId nodeForceBufferId,
+    FrameGraphTypes::ResourceId nodeRestBufferId,
     FrameGraphTypes::ResourceId positionBufferId,
     FrameGraphTypes::ResourceId currentPositionBufferId,
     FrameGraphTypes::ResourceId targetPositionBufferId
@@ -167,12 +171,14 @@ void RenderFrameDirector::updateResourceIds(
     this->spatialMapBufferId = spatialMapBufferId;
     this->controlParamsBufferId = controlParamsBufferId;
     this->spatialNextBufferId = spatialNextBufferId;
-    this->particleVelocityBufferId = particleVelocityBufferId;
-    this->particleInvMassBufferId = particleInvMassBufferId;
-    this->particleBodyBufferId = particleBodyBufferId;
     this->bodyDataBufferId = bodyDataBufferId;
     this->bodyParamsBufferId = bodyParamsBufferId;
-    this->distanceConstraintBufferId = distanceConstraintBufferId;
+    this->nodeVelocityBufferId = nodeVelocityBufferId;
+    this->nodeInvMassBufferId = nodeInvMassBufferId;
+    this->triangleRestBufferId = triangleRestBufferId;
+    this->triangleAreaBufferId = triangleAreaBufferId;
+    this->nodeForceBufferId = nodeForceBufferId;
+    this->nodeRestBufferId = nodeRestBufferId;
     this->positionBufferId = positionBufferId;
     this->currentPositionBufferId = currentPositionBufferId;
     this->targetPositionBufferId = targetPositionBufferId;

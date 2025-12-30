@@ -18,8 +18,7 @@ EntityBufferManager::~EntityBufferManager() {
 bool EntityBufferManager::initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxEntities) {
     this->maxEntities = maxEntities;
     this->context = &context;
-    maxParticles = maxEntities * SoftBodyConstants::kParticlesPerBody;
-    maxConstraints = maxEntities * SoftBodyConstants::kConstraintsPerBody;
+    maxNodes = maxEntities * SoftBodyConstants::kParticlesPerBody;
     
     // Initialize upload service
     if (!uploadService.initialize(resourceCoordinator)) {
@@ -64,8 +63,8 @@ bool EntityBufferManager::initialize(const VulkanContext& context, ResourceCoord
         return false;
     }
     
-    // Initialize position buffer coordinator for particle positions
-    if (!positionCoordinator.initialize(context, resourceCoordinator, maxParticles)) {
+    // Initialize position buffer coordinator for node positions
+    if (!positionCoordinator.initialize(context, resourceCoordinator, maxNodes)) {
         std::cerr << "EntityBufferManager: Failed to initialize position coordinator" << std::endl;
         return false;
     }
@@ -75,23 +74,18 @@ bool EntityBufferManager::initialize(const VulkanContext& context, ResourceCoord
         return false;
     }
 
-    if (!spatialNextBuffer.initialize(context, resourceCoordinator, maxParticles)) {
+    if (!spatialNextBuffer.initialize(context, resourceCoordinator, maxEntities)) {
         std::cerr << "EntityBufferManager: Failed to initialize spatial next buffer" << std::endl;
         return false;
     }
     
-    if (!particleVelocityBuffer.initialize(context, resourceCoordinator, maxParticles)) {
-        std::cerr << "EntityBufferManager: Failed to initialize particle velocity buffer" << std::endl;
+    if (!nodeVelocityBuffer.initialize(context, resourceCoordinator, maxNodes)) {
+        std::cerr << "EntityBufferManager: Failed to initialize node velocity buffer" << std::endl;
         return false;
     }
 
-    if (!particleInvMassBuffer.initialize(context, resourceCoordinator, maxParticles)) {
-        std::cerr << "EntityBufferManager: Failed to initialize particle inv mass buffer" << std::endl;
-        return false;
-    }
-
-    if (!particleBodyBuffer.initialize(context, resourceCoordinator, maxParticles)) {
-        std::cerr << "EntityBufferManager: Failed to initialize particle body buffer" << std::endl;
+    if (!nodeInvMassBuffer.initialize(context, resourceCoordinator, maxNodes)) {
+        std::cerr << "EntityBufferManager: Failed to initialize node inv mass buffer" << std::endl;
         return false;
     }
 
@@ -105,8 +99,23 @@ bool EntityBufferManager::initialize(const VulkanContext& context, ResourceCoord
         return false;
     }
 
-    if (!distanceConstraintBuffer.initialize(context, resourceCoordinator, maxConstraints)) {
-        std::cerr << "EntityBufferManager: Failed to initialize distance constraint buffer" << std::endl;
+    if (!triangleRestBuffer.initialize(context, resourceCoordinator, maxEntities)) {
+        std::cerr << "EntityBufferManager: Failed to initialize triangle rest buffer" << std::endl;
+        return false;
+    }
+
+    if (!triangleAreaBuffer.initialize(context, resourceCoordinator, maxEntities)) {
+        std::cerr << "EntityBufferManager: Failed to initialize triangle area buffer" << std::endl;
+        return false;
+    }
+
+    if (!nodeForceBuffer.initialize(context, resourceCoordinator, maxNodes)) {
+        std::cerr << "EntityBufferManager: Failed to initialize node force buffer" << std::endl;
+        return false;
+    }
+    
+    if (!nodeRestBuffer.initialize(context, resourceCoordinator, maxNodes)) {
+        std::cerr << "EntityBufferManager: Failed to initialize node rest buffer" << std::endl;
         return false;
     }
     
@@ -125,17 +134,18 @@ void EntityBufferManager::cleanup() {
     velocityBuffer.cleanup();
     controlParamsBuffer.cleanup();
     spatialNextBuffer.cleanup();
-    particleVelocityBuffer.cleanup();
-    particleInvMassBuffer.cleanup();
-    particleBodyBuffer.cleanup();
+    nodeVelocityBuffer.cleanup();
+    nodeInvMassBuffer.cleanup();
     bodyDataBuffer.cleanup();
     bodyParamsBuffer.cleanup();
-    distanceConstraintBuffer.cleanup();
+    triangleRestBuffer.cleanup();
+    triangleAreaBuffer.cleanup();
+    nodeForceBuffer.cleanup();
+    nodeRestBuffer.cleanup();
     uploadService.cleanup();
     
     maxEntities = 0;
-    maxParticles = 0;
-    maxConstraints = 0;
+    maxNodes = 0;
 }
 
 
@@ -171,16 +181,12 @@ bool EntityBufferManager::uploadSpatialNextData(const void* data, VkDeviceSize s
     return uploadService.upload(spatialNextBuffer, data, size, offset);
 }
 
-bool EntityBufferManager::uploadParticleVelocityData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
-    return uploadService.upload(particleVelocityBuffer, data, size, offset);
+bool EntityBufferManager::uploadNodeVelocityData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
+    return uploadService.upload(nodeVelocityBuffer, data, size, offset);
 }
 
-bool EntityBufferManager::uploadParticleInvMassData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
-    return uploadService.upload(particleInvMassBuffer, data, size, offset);
-}
-
-bool EntityBufferManager::uploadParticleBodyData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
-    return uploadService.upload(particleBodyBuffer, data, size, offset);
+bool EntityBufferManager::uploadNodeInvMassData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
+    return uploadService.upload(nodeInvMassBuffer, data, size, offset);
 }
 
 bool EntityBufferManager::uploadBodyData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
@@ -191,8 +197,20 @@ bool EntityBufferManager::uploadBodyParamsData(const void* data, VkDeviceSize si
     return uploadService.upload(bodyParamsBuffer, data, size, offset);
 }
 
-bool EntityBufferManager::uploadDistanceConstraintData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
-    return uploadService.upload(distanceConstraintBuffer, data, size, offset);
+bool EntityBufferManager::uploadTriangleRestData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
+    return uploadService.upload(triangleRestBuffer, data, size, offset);
+}
+
+bool EntityBufferManager::uploadTriangleAreaData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
+    return uploadService.upload(triangleAreaBuffer, data, size, offset);
+}
+
+bool EntityBufferManager::uploadNodeForceData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
+    return uploadService.upload(nodeForceBuffer, data, size, offset);
+}
+
+bool EntityBufferManager::uploadNodeRestData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
+    return uploadService.upload(nodeRestBuffer, data, size, offset);
 }
 
 bool EntityBufferManager::uploadPositionDataToAllBuffers(const void* data, VkDeviceSize size, VkDeviceSize offset) {

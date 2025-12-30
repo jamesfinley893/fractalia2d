@@ -26,12 +26,14 @@ public:
     FrameGraphTypes::ResourceId getSpatialMapBufferId() const { return spatialMapBufferId; }
     FrameGraphTypes::ResourceId getControlParamsBufferId() const { return controlParamsBufferId; }
     FrameGraphTypes::ResourceId getSpatialNextBufferId() const { return spatialNextBufferId; }
-    FrameGraphTypes::ResourceId getParticleVelocityBufferId() const { return particleVelocityBufferId; }
-    FrameGraphTypes::ResourceId getParticleInvMassBufferId() const { return particleInvMassBufferId; }
-    FrameGraphTypes::ResourceId getParticleBodyBufferId() const { return particleBodyBufferId; }
+    FrameGraphTypes::ResourceId getNodeVelocityBufferId() const { return nodeVelocityBufferId; }
+    FrameGraphTypes::ResourceId getNodeInvMassBufferId() const { return nodeInvMassBufferId; }
     FrameGraphTypes::ResourceId getBodyDataBufferId() const { return bodyDataBufferId; }
     FrameGraphTypes::ResourceId getBodyParamsBufferId() const { return bodyParamsBufferId; }
-    FrameGraphTypes::ResourceId getDistanceConstraintBufferId() const { return distanceConstraintBufferId; }
+    FrameGraphTypes::ResourceId getTriangleRestBufferId() const { return triangleRestBufferId; }
+    FrameGraphTypes::ResourceId getTriangleAreaBufferId() const { return triangleAreaBufferId; }
+    FrameGraphTypes::ResourceId getNodeForceBufferId() const { return nodeForceBufferId; }
+    FrameGraphTypes::ResourceId getNodeRestBufferId() const { return nodeRestBufferId; }
     FrameGraphTypes::ResourceId getPositionBufferId() const { return positionBufferId; }
     FrameGraphTypes::ResourceId getCurrentPositionBufferId() const { return currentPositionBufferId; }
     FrameGraphTypes::ResourceId getTargetPositionBufferId() const { return targetPositionBufferId; }
@@ -50,12 +52,14 @@ private:
     FrameGraphTypes::ResourceId spatialMapBufferId = 0;
     FrameGraphTypes::ResourceId controlParamsBufferId = 0;
     FrameGraphTypes::ResourceId spatialNextBufferId = 0;
-    FrameGraphTypes::ResourceId particleVelocityBufferId = 0;
-    FrameGraphTypes::ResourceId particleInvMassBufferId = 0;
-    FrameGraphTypes::ResourceId particleBodyBufferId = 0;
+    FrameGraphTypes::ResourceId nodeVelocityBufferId = 0;
+    FrameGraphTypes::ResourceId nodeInvMassBufferId = 0;
     FrameGraphTypes::ResourceId bodyDataBufferId = 0;
     FrameGraphTypes::ResourceId bodyParamsBufferId = 0;
-    FrameGraphTypes::ResourceId distanceConstraintBufferId = 0;
+    FrameGraphTypes::ResourceId triangleRestBufferId = 0;
+    FrameGraphTypes::ResourceId triangleAreaBufferId = 0;
+    FrameGraphTypes::ResourceId nodeForceBufferId = 0;
+    FrameGraphTypes::ResourceId nodeRestBufferId = 0;
     FrameGraphTypes::ResourceId positionBufferId = 0;
     FrameGraphTypes::ResourceId currentPositionBufferId = 0;
     FrameGraphTypes::ResourceId targetPositionBufferId = 0;

@@ -20,9 +20,9 @@ cp src/shaders/compiled/movement_random.comp.spv build/shaders/
 glslangValidator -V src/shaders/physics.comp -o src/shaders/compiled/physics.comp.spv
 cp src/shaders/compiled/physics.comp.spv build/shaders/
 
-# Compile compute shader (PBD soft bodies)
-glslangValidator -V src/shaders/pbd.comp -o src/shaders/compiled/pbd.comp.spv
-cp src/shaders/compiled/pbd.comp.spv build/shaders/
+# Compile compute shader (FEM soft bodies)
+glslangValidator -V src/shaders/fem.comp -o src/shaders/compiled/fem.comp.spv
+cp src/shaders/compiled/fem.comp.spv build/shaders/
 
 # Export shaders to Windows build folder
 WINDOWS_DEST="/mnt/f/Projects/Fractalia2/build/shaders"

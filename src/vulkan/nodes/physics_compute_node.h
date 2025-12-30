@@ -25,12 +25,14 @@ public:
         FrameGraphTypes::ResourceId targetPositionBufferId = 0;
         FrameGraphTypes::ResourceId controlParamsBufferId = 0;
         FrameGraphTypes::ResourceId spatialNextBufferId = 0;
-        FrameGraphTypes::ResourceId particleVelocityBufferId = 0;
-        FrameGraphTypes::ResourceId particleInvMassBufferId = 0;
-        FrameGraphTypes::ResourceId particleBodyBufferId = 0;
         FrameGraphTypes::ResourceId bodyDataBufferId = 0;
         FrameGraphTypes::ResourceId bodyParamsBufferId = 0;
-        FrameGraphTypes::ResourceId distanceConstraintBufferId = 0;
+        FrameGraphTypes::ResourceId nodeVelocityBufferId = 0;
+        FrameGraphTypes::ResourceId nodeInvMassBufferId = 0;
+        FrameGraphTypes::ResourceId triangleRestBufferId = 0;
+        FrameGraphTypes::ResourceId triangleAreaBufferId = 0;
+        FrameGraphTypes::ResourceId nodeForceBufferId = 0;
+        FrameGraphTypes::ResourceId nodeRestBufferId = 0;
         ComputePipelineManager* computeManager = nullptr;
         GPUEntityManager* gpuEntityManager = nullptr;
         std::shared_ptr<GPUTimeoutDetector> timeoutDetector = nullptr;
@@ -86,14 +88,14 @@ private:
     bool pipelineDirty = true;
     
     // Frame data for compute shader
-    struct PBDPushConstants {
+    struct FEMPushConstants {
         float time;
         float deltaTime;
         uint32_t bodyCount;
-        uint32_t particleCount;
-        uint32_t constraintCount;
+        uint32_t nodeCount;
         uint32_t frame;
         uint32_t elementOffset;
         uint32_t mode;
+        uint32_t padding;
     } pushConstants{};
 };

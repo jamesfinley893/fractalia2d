@@ -96,7 +96,7 @@ void GPUEntityManager::cleanup() {
 
 
 void GPUEntityManager::addEntitiesFromECS(const std::vector<flecs::entity>& entities) {
-    stagingSoftBodies.reserve(stagingEntities.size() + entities.size());
+    stagingFEM.reserve(stagingEntities.size() + entities.size());
     for (const auto& entity : entities) {
         if (activeEntityCount + stagingEntities.size() >= MAX_ENTITIES) {
             std::cerr << "GPUEntityManager: Reached max capacity, stopping entity addition" << std::endl;
@@ -125,7 +125,7 @@ void GPUEntityManager::addEntitiesFromECS(const std::vector<flecs::entity>& enti
             }
             entity.set<GPUIndex>({gpuIndex});
 
-            // Build soft body particle data (triangle) for PBD
+            // Build FEM triangle data
             constexpr glm::vec3 kLocalVerts[SoftBodyConstants::kParticlesPerBody] = {
                 glm::vec3(0.0f, -2.0f, 0.0f),
                 glm::vec3(2.0f, 2.0f, 0.0f),
@@ -138,59 +138,49 @@ void GPUEntityManager::addEntitiesFromECS(const std::vector<flecs::entity>& enti
                 worldVerts[i] = glm::vec3(model * glm::vec4(kLocalVerts[i], 1.0f));
             }
 
-            uint32_t particleOffset = gpuIndex * SoftBodyConstants::kParticlesPerBody;
-            uint32_t constraintOffset = gpuIndex * SoftBodyConstants::kConstraintsPerBody;
-
+            uint32_t nodeOffset = gpuIndex * SoftBodyConstants::kParticlesPerBody;
             for (uint32_t i = 0; i < SoftBodyConstants::kParticlesPerBody; ++i) {
-                stagingSoftBodies.particlePositions.emplace_back(worldVerts[i], 1.0f);
-                stagingSoftBodies.particlePrevPositions.emplace_back(worldVerts[i], 1.0f);
-                stagingSoftBodies.particleVelocities.emplace_back(0.0f, 0.0f, 0.0f, 0.0f);
-                stagingSoftBodies.particleInvMass.emplace_back(1.0f);
-                stagingSoftBodies.particleBodyIds.emplace_back(gpuIndex);
+                stagingFEM.nodePositions.emplace_back(worldVerts[i], 1.0f);
+                stagingFEM.nodeVelocities.emplace_back(0.0f, 0.0f, 0.0f, 0.0f);
+                stagingFEM.nodeRestPositions.emplace_back(worldVerts[i], 1.0f);
             }
 
-            auto edgeLen = [](const glm::vec3& a, const glm::vec3& b) {
-                return glm::length(a - b);
-            };
+            glm::vec2 p0 = glm::vec2(worldVerts[0]);
+            glm::vec2 p1 = glm::vec2(worldVerts[1]);
+            glm::vec2 p2 = glm::vec2(worldVerts[2]);
 
-            GPUDistanceConstraint c0{
-                particleOffset + 0,
-                particleOffset + 1,
-                edgeLen(worldVerts[0], worldVerts[1]),
-                0.9f
-            };
-            GPUDistanceConstraint c1{
-                particleOffset + 1,
-                particleOffset + 2,
-                edgeLen(worldVerts[1], worldVerts[2]),
-                0.9f
-            };
-            GPUDistanceConstraint c2{
-                particleOffset + 2,
-                particleOffset + 0,
-                edgeLen(worldVerts[2], worldVerts[0]),
-                0.9f
-            };
-            stagingSoftBodies.distanceConstraints.emplace_back(c0);
-            stagingSoftBodies.distanceConstraints.emplace_back(c1);
-            stagingSoftBodies.distanceConstraints.emplace_back(c2);
+            glm::mat2 Dm(p1 - p0, p2 - p0);
+            float det = Dm[0][0] * Dm[1][1] - Dm[0][1] * Dm[1][0];
+            float invDet = (std::abs(det) > 1e-8f) ? (1.0f / det) : 0.0f;
+            glm::mat2 DmInv(
+                Dm[1][1] * invDet, -Dm[0][1] * invDet,
+                -Dm[1][0] * invDet, Dm[0][0] * invDet
+            );
 
-            float restArea = 0.5f * ((worldVerts[1].x - worldVerts[0].x) * (worldVerts[2].y - worldVerts[0].y) -
-                                     (worldVerts[1].y - worldVerts[0].y) * (worldVerts[2].x - worldVerts[0].x));
-            restArea = std::abs(restArea);
+            float restArea = 0.5f * std::abs(det);
+            float nodeMass = (restArea > 0.0f) ? (restArea / 3.0f) : 1.0f;
+            float invMass = (nodeMass > 0.0f) ? (1.0f / nodeMass) : 0.0f;
+            for (uint32_t i = 0; i < SoftBodyConstants::kParticlesPerBody; ++i) {
+                stagingFEM.nodeInvMass.emplace_back(invMass);
+            }
 
-            stagingSoftBodies.bodyData.emplace_back(
-                particleOffset,
+            stagingFEM.bodyData.emplace_back(
+                nodeOffset,
                 SoftBodyConstants::kParticlesPerBody,
-                constraintOffset,
-                SoftBodyConstants::kConstraintsPerBody
+                0u,
+                0u
             );
-            stagingSoftBodies.bodyParams.emplace_back(
-                0.9f,   // distance stiffness
-                0.6f,   // area stiffness
-                0.995f, // damping
-                restArea
+            stagingFEM.bodyParams.emplace_back(
+                30.0f,  // mu
+                45.0f,  // lambda
+                0.55f,  // restitution
+                0.4f    // friction
             );
+            stagingFEM.triRestData.emplace_back(
+                DmInv[0][0], DmInv[0][1],
+                DmInv[1][0], DmInv[1][1]
+            );
+            stagingFEM.triRestArea.emplace_back(restArea);
         }
     }
 }
@@ -225,35 +215,34 @@ void GPUEntityManager::uploadPendingEntities() {
     bufferManager.uploadModelMatrixData(stagingEntities.modelMatrices.data(), modelMatrixSize, modelMatrixOffset);
     bufferManager.uploadControlParamsData(stagingEntities.controlParams.data(), controlParamsSize, controlParamsOffset);
     
-    // Initialize particle buffers for PBD soft bodies
-    VkDeviceSize particleOffset = activeEntityCount * SoftBodyConstants::kParticlesPerBody * sizeof(glm::vec4);
-    VkDeviceSize particleCount = stagingSoftBodies.particlePositions.size();
-    VkDeviceSize particleSize = particleCount * sizeof(glm::vec4);
+    // Initialize FEM node buffers
+    VkDeviceSize nodeOffset = activeEntityCount * SoftBodyConstants::kParticlesPerBody * sizeof(glm::vec4);
+    VkDeviceSize nodeCount = stagingFEM.nodePositions.size();
+    VkDeviceSize nodeSize = nodeCount * sizeof(glm::vec4);
 
-    bufferManager.uploadPositionDataToAllBuffers(stagingSoftBodies.particlePositions.data(), particleSize, particleOffset);
-    bufferManager.uploadParticleVelocityData(stagingSoftBodies.particleVelocities.data(), particleCount * sizeof(glm::vec4), particleOffset);
-    bufferManager.uploadParticleInvMassData(stagingSoftBodies.particleInvMass.data(), particleCount * sizeof(float), activeEntityCount * SoftBodyConstants::kParticlesPerBody * sizeof(float));
-    bufferManager.uploadParticleBodyData(stagingSoftBodies.particleBodyIds.data(), particleCount * sizeof(uint32_t), activeEntityCount * SoftBodyConstants::kParticlesPerBody * sizeof(uint32_t));
+    bufferManager.uploadPositionDataToAllBuffers(stagingFEM.nodePositions.data(), nodeSize, nodeOffset);
+    bufferManager.uploadNodeVelocityData(stagingFEM.nodeVelocities.data(), nodeCount * sizeof(glm::vec4), nodeOffset);
+    bufferManager.uploadNodeInvMassData(stagingFEM.nodeInvMass.data(), nodeCount * sizeof(float), activeEntityCount * SoftBodyConstants::kParticlesPerBody * sizeof(float));
+    bufferManager.uploadNodeRestData(stagingFEM.nodeRestPositions.data(), nodeCount * sizeof(glm::vec4), nodeOffset);
 
     VkDeviceSize bodyOffset = activeEntityCount * sizeof(glm::uvec4);
     VkDeviceSize bodyParamsOffset = activeEntityCount * sizeof(glm::vec4);
-    VkDeviceSize bodyCount = stagingSoftBodies.bodyData.size();
-    bufferManager.uploadBodyData(stagingSoftBodies.bodyData.data(), bodyCount * sizeof(glm::uvec4), bodyOffset);
-    bufferManager.uploadBodyParamsData(stagingSoftBodies.bodyParams.data(), bodyCount * sizeof(glm::vec4), bodyParamsOffset);
-
-    VkDeviceSize constraintOffset = activeEntityCount * SoftBodyConstants::kConstraintsPerBody * sizeof(GPUDistanceConstraint);
-    bufferManager.uploadDistanceConstraintData(stagingSoftBodies.distanceConstraints.data(), stagingSoftBodies.distanceConstraints.size() * sizeof(GPUDistanceConstraint), constraintOffset);
+    VkDeviceSize bodyCount = stagingFEM.bodyData.size();
+    bufferManager.uploadBodyData(stagingFEM.bodyData.data(), bodyCount * sizeof(glm::uvec4), bodyOffset);
+    bufferManager.uploadBodyParamsData(stagingFEM.bodyParams.data(), bodyCount * sizeof(glm::vec4), bodyParamsOffset);
+    bufferManager.uploadTriangleRestData(stagingFEM.triRestData.data(), bodyCount * sizeof(glm::vec4), activeEntityCount * sizeof(glm::vec4));
+    bufferManager.uploadTriangleAreaData(stagingFEM.triRestArea.data(), bodyCount * sizeof(float), activeEntityCount * sizeof(float));
     
     activeEntityCount += entityCount;
     stagingEntities.clear();
-    stagingSoftBodies.clear();
+    stagingFEM.clear();
     
     std::cout << "GPUEntityManager: Uploaded " << entityCount << " entities to GPU-local memory (SoA), total: " << activeEntityCount << std::endl;
 }
 
 void GPUEntityManager::clearAllEntities() {
     stagingEntities.clear();
-    stagingSoftBodies.clear();
+    stagingFEM.clear();
     activeEntityCount = 0;
 }
 

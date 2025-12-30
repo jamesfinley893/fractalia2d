@@ -4,13 +4,6 @@
 #include <glm/glm.hpp>
 #include <cstdint>
 
-struct GPUDistanceConstraint {
-    uint32_t a;
-    uint32_t b;
-    float restLength;
-    float stiffness;
-};
-
 /**
  * Specialized buffer classes following Single Responsibility Principle
  * Each class manages exactly one type of entity data
@@ -134,43 +127,30 @@ protected:
     const char* getBufferTypeName() const override { return "ControlParams"; }
 };
 
-// SINGLE responsibility: particle velocity data management (per particle)
-class ParticleVelocityBuffer : public BufferBase {
+// SINGLE responsibility: node velocity data management (per node)
+class NodeVelocityBuffer : public BufferBase {
 public:
     using BufferBase::initialize;
 
-    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxParticles) {
-        return BufferBase::initialize(context, resourceCoordinator, maxParticles, sizeof(glm::vec4), 0);
+    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxNodes) {
+        return BufferBase::initialize(context, resourceCoordinator, maxNodes, sizeof(glm::vec4), 0);
     }
 
 protected:
-    const char* getBufferTypeName() const override { return "ParticleVelocity"; }
+    const char* getBufferTypeName() const override { return "NodeVelocity"; }
 };
 
-// SINGLE responsibility: particle inverse mass data management (per particle)
-class ParticleInvMassBuffer : public BufferBase {
+// SINGLE responsibility: node inverse mass data management (per node)
+class NodeInvMassBuffer : public BufferBase {
 public:
     using BufferBase::initialize;
 
-    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxParticles) {
-        return BufferBase::initialize(context, resourceCoordinator, maxParticles, sizeof(float), 0);
+    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxNodes) {
+        return BufferBase::initialize(context, resourceCoordinator, maxNodes, sizeof(float), 0);
     }
 
 protected:
-    const char* getBufferTypeName() const override { return "ParticleInvMass"; }
-};
-
-// SINGLE responsibility: particle→body mapping data management (per particle)
-class ParticleBodyBuffer : public BufferBase {
-public:
-    using BufferBase::initialize;
-
-    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxParticles) {
-        return BufferBase::initialize(context, resourceCoordinator, maxParticles, sizeof(uint32_t), 0);
-    }
-
-protected:
-    const char* getBufferTypeName() const override { return "ParticleBody"; }
+    const char* getBufferTypeName() const override { return "NodeInvMass"; }
 };
 
 // SINGLE responsibility: body metadata (offsets/counts)
@@ -199,15 +179,54 @@ protected:
     const char* getBufferTypeName() const override { return "BodyParams"; }
 };
 
-// SINGLE responsibility: distance constraint data management
-class DistanceConstraintBuffer : public BufferBase {
+// SINGLE responsibility: triangle rest data (DmInv 2x2)
+class TriangleRestBuffer : public BufferBase {
 public:
     using BufferBase::initialize;
 
-    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxConstraints) {
-        return BufferBase::initialize(context, resourceCoordinator, maxConstraints, sizeof(GPUDistanceConstraint), 0);
+    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxTriangles) {
+        return BufferBase::initialize(context, resourceCoordinator, maxTriangles, sizeof(glm::vec4), 0);
     }
 
 protected:
-    const char* getBufferTypeName() const override { return "DistanceConstraint"; }
+    const char* getBufferTypeName() const override { return "TriangleRest"; }
+};
+
+// SINGLE responsibility: triangle rest area data
+class TriangleAreaBuffer : public BufferBase {
+public:
+    using BufferBase::initialize;
+
+    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxTriangles) {
+        return BufferBase::initialize(context, resourceCoordinator, maxTriangles, sizeof(float), 0);
+    }
+
+protected:
+    const char* getBufferTypeName() const override { return "TriangleArea"; }
+};
+
+// SINGLE responsibility: per-node force accumulator
+class NodeForceBuffer : public BufferBase {
+public:
+    using BufferBase::initialize;
+
+    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxNodes) {
+        return BufferBase::initialize(context, resourceCoordinator, maxNodes, sizeof(glm::vec4), 0);
+    }
+
+protected:
+    const char* getBufferTypeName() const override { return "NodeForce"; }
+};
+
+// SINGLE responsibility: node rest positions (reference shape)
+class NodeRestBuffer : public BufferBase {
+public:
+    using BufferBase::initialize;
+
+    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxNodes) {
+        return BufferBase::initialize(context, resourceCoordinator, maxNodes, sizeof(glm::vec4), 0);
+    }
+
+protected:
+    const char* getBufferTypeName() const override { return "NodeRest"; }
 };

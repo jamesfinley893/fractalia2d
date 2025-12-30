@@ -49,38 +49,37 @@ struct GPUEntitySoA {
     void addFromECS(const Transform& transform, const Renderable& renderable, const MovementPattern& pattern);
 };
 
-struct GPUSoftBodyStaging {
-    std::vector<glm::vec4> particlePositions;
-    std::vector<glm::vec4> particlePrevPositions;
-    std::vector<glm::vec4> particleVelocities;
-    std::vector<float> particleInvMass;
-    std::vector<uint32_t> particleBodyIds;
+struct GPUFEMStaging {
+    std::vector<glm::vec4> nodePositions;
+    std::vector<glm::vec4> nodeVelocities;
+    std::vector<float> nodeInvMass;
+    std::vector<glm::vec4> nodeRestPositions;
     std::vector<glm::uvec4> bodyData;
     std::vector<glm::vec4> bodyParams;
-    std::vector<GPUDistanceConstraint> distanceConstraints;
+    std::vector<glm::vec4> triRestData;  // DmInv 2x2
+    std::vector<float> triRestArea;
 
     void reserve(size_t bodyCount) {
-        size_t particleCount = bodyCount * SoftBodyConstants::kParticlesPerBody;
-        size_t constraintCount = bodyCount * SoftBodyConstants::kConstraintsPerBody;
-        particlePositions.reserve(particleCount);
-        particlePrevPositions.reserve(particleCount);
-        particleVelocities.reserve(particleCount);
-        particleInvMass.reserve(particleCount);
-        particleBodyIds.reserve(particleCount);
+        size_t nodeCount = bodyCount * SoftBodyConstants::kParticlesPerBody;
+        nodePositions.reserve(nodeCount);
+        nodeVelocities.reserve(nodeCount);
+        nodeInvMass.reserve(nodeCount);
+        nodeRestPositions.reserve(nodeCount);
         bodyData.reserve(bodyCount);
         bodyParams.reserve(bodyCount);
-        distanceConstraints.reserve(constraintCount);
+        triRestData.reserve(bodyCount);
+        triRestArea.reserve(bodyCount);
     }
 
     void clear() {
-        particlePositions.clear();
-        particlePrevPositions.clear();
-        particleVelocities.clear();
-        particleInvMass.clear();
-        particleBodyIds.clear();
+        nodePositions.clear();
+        nodeVelocities.clear();
+        nodeInvMass.clear();
+        nodeRestPositions.clear();
         bodyData.clear();
         bodyParams.clear();
-        distanceConstraints.clear();
+        triRestData.clear();
+        triRestArea.clear();
     }
 };
 
@@ -108,12 +107,14 @@ public:
     VkBuffer getSpatialMapBuffer() const { return bufferManager.getSpatialMapBuffer(); }
     VkBuffer getControlParamsBuffer() const { return bufferManager.getControlParamsBuffer(); }
     VkBuffer getSpatialNextBuffer() const { return bufferManager.getSpatialNextBuffer(); }
-    VkBuffer getParticleVelocityBuffer() const { return bufferManager.getParticleVelocityBuffer(); }
-    VkBuffer getParticleInvMassBuffer() const { return bufferManager.getParticleInvMassBuffer(); }
-    VkBuffer getParticleBodyBuffer() const { return bufferManager.getParticleBodyBuffer(); }
+    VkBuffer getNodeVelocityBuffer() const { return bufferManager.getNodeVelocityBuffer(); }
+    VkBuffer getNodeInvMassBuffer() const { return bufferManager.getNodeInvMassBuffer(); }
     VkBuffer getBodyDataBuffer() const { return bufferManager.getBodyDataBuffer(); }
     VkBuffer getBodyParamsBuffer() const { return bufferManager.getBodyParamsBuffer(); }
-    VkBuffer getDistanceConstraintBuffer() const { return bufferManager.getDistanceConstraintBuffer(); }
+    VkBuffer getTriangleRestBuffer() const { return bufferManager.getTriangleRestBuffer(); }
+    VkBuffer getTriangleAreaBuffer() const { return bufferManager.getTriangleAreaBuffer(); }
+    VkBuffer getNodeForceBuffer() const { return bufferManager.getNodeForceBuffer(); }
+    VkBuffer getNodeRestBuffer() const { return bufferManager.getNodeRestBuffer(); }
     
     // Position buffers remain the same
     VkBuffer getPositionBuffer() const { return bufferManager.getPositionBuffer(); }
@@ -135,20 +136,21 @@ public:
     VkDeviceSize getSpatialMapBufferSize() const { return bufferManager.getSpatialMapBufferSize(); }
     VkDeviceSize getControlParamsBufferSize() const { return bufferManager.getControlParamsBufferSize(); }
     VkDeviceSize getSpatialNextBufferSize() const { return bufferManager.getSpatialNextBufferSize(); }
-    VkDeviceSize getParticleVelocityBufferSize() const { return bufferManager.getParticleVelocityBufferSize(); }
-    VkDeviceSize getParticleInvMassBufferSize() const { return bufferManager.getParticleInvMassBufferSize(); }
-    VkDeviceSize getParticleBodyBufferSize() const { return bufferManager.getParticleBodyBufferSize(); }
+    VkDeviceSize getNodeVelocityBufferSize() const { return bufferManager.getNodeVelocityBufferSize(); }
+    VkDeviceSize getNodeInvMassBufferSize() const { return bufferManager.getNodeInvMassBufferSize(); }
     VkDeviceSize getBodyDataBufferSize() const { return bufferManager.getBodyDataBufferSize(); }
     VkDeviceSize getBodyParamsBufferSize() const { return bufferManager.getBodyParamsBufferSize(); }
-    VkDeviceSize getDistanceConstraintBufferSize() const { return bufferManager.getDistanceConstraintBufferSize(); }
+    VkDeviceSize getTriangleRestBufferSize() const { return bufferManager.getTriangleRestBufferSize(); }
+    VkDeviceSize getTriangleAreaBufferSize() const { return bufferManager.getTriangleAreaBufferSize(); }
+    VkDeviceSize getNodeForceBufferSize() const { return bufferManager.getNodeForceBufferSize(); }
+    VkDeviceSize getNodeRestBufferSize() const { return bufferManager.getNodeRestBufferSize(); }
     VkDeviceSize getPositionBufferSize() const { return bufferManager.getPositionBufferSize(); }
     
     
     // Entity state
     uint32_t getEntityCount() const { return activeEntityCount; }
     uint32_t getMaxEntities() const { return bufferManager.getMaxEntities(); }
-    uint32_t getMaxParticles() const { return bufferManager.getMaxParticles(); }
-    uint32_t getMaxConstraints() const { return bufferManager.getMaxConstraints(); }
+    uint32_t getMaxNodes() const { return bufferManager.getMaxNodes(); }
     bool hasPendingUploads() const { return !stagingEntities.empty(); }
     
     // Descriptor management delegation
@@ -185,7 +187,7 @@ private:
     
     // Staging data - SoA approach
     GPUEntitySoA stagingEntities;
-    GPUSoftBodyStaging stagingSoftBodies;
+    GPUFEMStaging stagingFEM;
     uint32_t activeEntityCount = 0;
     
     // Debug: Mapping from GPU buffer index to ECS entity ID

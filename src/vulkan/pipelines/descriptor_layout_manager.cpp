@@ -656,55 +656,71 @@ namespace DescriptorLayoutPresets {
         spatialNextBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
         spatialNextBinding.debugName = "spatialNextBuffer";
 
-        // Binding 10: ParticleVelocityBuffer (per-particle velocities)
-        DescriptorBinding particleVelocityBinding{};
-        particleVelocityBinding.binding = 10;
-        particleVelocityBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        particleVelocityBinding.descriptorCount = 1;
-        particleVelocityBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-        particleVelocityBinding.debugName = "particleVelocityBuffer";
+        // Binding 10: NodeVelocityBuffer (per-node velocities)
+        DescriptorBinding nodeVelocityBinding{};
+        nodeVelocityBinding.binding = 10;
+        nodeVelocityBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        nodeVelocityBinding.descriptorCount = 1;
+        nodeVelocityBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        nodeVelocityBinding.debugName = "nodeVelocityBuffer";
 
-        // Binding 11: ParticleInvMassBuffer (per-particle inverse mass)
-        DescriptorBinding particleInvMassBinding{};
-        particleInvMassBinding.binding = 11;
-        particleInvMassBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        particleInvMassBinding.descriptorCount = 1;
-        particleInvMassBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-        particleInvMassBinding.debugName = "particleInvMassBuffer";
+        // Binding 11: NodeInvMassBuffer (per-node inverse mass)
+        DescriptorBinding nodeInvMassBinding{};
+        nodeInvMassBinding.binding = 11;
+        nodeInvMassBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        nodeInvMassBinding.descriptorCount = 1;
+        nodeInvMassBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        nodeInvMassBinding.debugName = "nodeInvMassBuffer";
 
-        // Binding 12: ParticleBodyBuffer (per-particle body index)
-        DescriptorBinding particleBodyBinding{};
-        particleBodyBinding.binding = 12;
-        particleBodyBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        particleBodyBinding.descriptorCount = 1;
-        particleBodyBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-        particleBodyBinding.debugName = "particleBodyBuffer";
-
-        // Binding 13: BodyDataBuffer (per-body offsets/counts)
+        // Binding 12: BodyDataBuffer (per-body offsets/counts)
         DescriptorBinding bodyDataBinding{};
-        bodyDataBinding.binding = 13;
+        bodyDataBinding.binding = 12;
         bodyDataBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         bodyDataBinding.descriptorCount = 1;
         bodyDataBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
         bodyDataBinding.debugName = "bodyDataBuffer";
 
-        // Binding 14: BodyParamsBuffer (per-body simulation params)
+        // Binding 13: BodyParamsBuffer (per-body simulation params)
         DescriptorBinding bodyParamsBinding{};
-        bodyParamsBinding.binding = 14;
+        bodyParamsBinding.binding = 13;
         bodyParamsBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         bodyParamsBinding.descriptorCount = 1;
         bodyParamsBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
         bodyParamsBinding.debugName = "bodyParamsBuffer";
 
-        // Binding 15: DistanceConstraintBuffer (per-constraint data)
-        DescriptorBinding constraintBinding{};
-        constraintBinding.binding = 15;
-        constraintBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        constraintBinding.descriptorCount = 1;
-        constraintBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-        constraintBinding.debugName = "distanceConstraintBuffer";
+        // Binding 14: TriangleRestBuffer (DmInv)
+        DescriptorBinding triRestBinding{};
+        triRestBinding.binding = 14;
+        triRestBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        triRestBinding.descriptorCount = 1;
+        triRestBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        triRestBinding.debugName = "triangleRestBuffer";
+
+        // Binding 15: TriangleAreaBuffer
+        DescriptorBinding triAreaBinding{};
+        triAreaBinding.binding = 15;
+        triAreaBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        triAreaBinding.descriptorCount = 1;
+        triAreaBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        triAreaBinding.debugName = "triangleAreaBuffer";
+
+        // Binding 16: NodeForceBuffer
+        DescriptorBinding nodeForceBinding{};
+        nodeForceBinding.binding = 16;
+        nodeForceBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        nodeForceBinding.descriptorCount = 1;
+        nodeForceBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        nodeForceBinding.debugName = "nodeForceBuffer";
+
+        // Binding 17: NodeRestBuffer
+        DescriptorBinding nodeRestBinding{};
+        nodeRestBinding.binding = 17;
+        nodeRestBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        nodeRestBinding.descriptorCount = 1;
+        nodeRestBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        nodeRestBinding.debugName = "nodeRestBuffer";
         
-        spec.bindings = {velocityBinding, movementParamsBinding, runtimeStateBinding, positionOutputBinding, currentPosBinding, colorBinding, modelMatrixBinding, spatialMapBinding, controlParamsBinding, spatialNextBinding, particleVelocityBinding, particleInvMassBinding, particleBodyBinding, bodyDataBinding, bodyParamsBinding, constraintBinding};
+        spec.bindings = {velocityBinding, movementParamsBinding, runtimeStateBinding, positionOutputBinding, currentPosBinding, colorBinding, modelMatrixBinding, spatialMapBinding, controlParamsBinding, spatialNextBinding, nodeVelocityBinding, nodeInvMassBinding, bodyDataBinding, bodyParamsBinding, triRestBinding, triAreaBinding, nodeForceBinding, nodeRestBinding};
         return spec;
     }
 }

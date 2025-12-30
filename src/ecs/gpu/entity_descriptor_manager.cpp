@@ -157,41 +157,53 @@ bool EntityDescriptorManager::createDescriptorSetLayouts() {
     computeBindings[EntityDescriptorBindings::Compute::SPATIAL_NEXT_BUFFER].descriptorCount = 1;
     computeBindings[EntityDescriptorBindings::Compute::SPATIAL_NEXT_BUFFER].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-    // Binding 10: Particle velocity buffer (per particle)
-    computeBindings[EntityDescriptorBindings::Compute::PARTICLE_VELOCITY_BUFFER].binding = EntityDescriptorBindings::Compute::PARTICLE_VELOCITY_BUFFER;
-    computeBindings[EntityDescriptorBindings::Compute::PARTICLE_VELOCITY_BUFFER].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    computeBindings[EntityDescriptorBindings::Compute::PARTICLE_VELOCITY_BUFFER].descriptorCount = 1;
-    computeBindings[EntityDescriptorBindings::Compute::PARTICLE_VELOCITY_BUFFER].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    // Binding 10: Node velocity buffer (per node)
+    computeBindings[EntityDescriptorBindings::Compute::NODE_VELOCITY_BUFFER].binding = EntityDescriptorBindings::Compute::NODE_VELOCITY_BUFFER;
+    computeBindings[EntityDescriptorBindings::Compute::NODE_VELOCITY_BUFFER].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    computeBindings[EntityDescriptorBindings::Compute::NODE_VELOCITY_BUFFER].descriptorCount = 1;
+    computeBindings[EntityDescriptorBindings::Compute::NODE_VELOCITY_BUFFER].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-    // Binding 11: Particle inv mass buffer (per particle)
-    computeBindings[EntityDescriptorBindings::Compute::PARTICLE_INV_MASS_BUFFER].binding = EntityDescriptorBindings::Compute::PARTICLE_INV_MASS_BUFFER;
-    computeBindings[EntityDescriptorBindings::Compute::PARTICLE_INV_MASS_BUFFER].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    computeBindings[EntityDescriptorBindings::Compute::PARTICLE_INV_MASS_BUFFER].descriptorCount = 1;
-    computeBindings[EntityDescriptorBindings::Compute::PARTICLE_INV_MASS_BUFFER].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    // Binding 11: Node inv mass buffer (per node)
+    computeBindings[EntityDescriptorBindings::Compute::NODE_INV_MASS_BUFFER].binding = EntityDescriptorBindings::Compute::NODE_INV_MASS_BUFFER;
+    computeBindings[EntityDescriptorBindings::Compute::NODE_INV_MASS_BUFFER].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    computeBindings[EntityDescriptorBindings::Compute::NODE_INV_MASS_BUFFER].descriptorCount = 1;
+    computeBindings[EntityDescriptorBindings::Compute::NODE_INV_MASS_BUFFER].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-    // Binding 12: Particle body buffer (per particle)
-    computeBindings[EntityDescriptorBindings::Compute::PARTICLE_BODY_BUFFER].binding = EntityDescriptorBindings::Compute::PARTICLE_BODY_BUFFER;
-    computeBindings[EntityDescriptorBindings::Compute::PARTICLE_BODY_BUFFER].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    computeBindings[EntityDescriptorBindings::Compute::PARTICLE_BODY_BUFFER].descriptorCount = 1;
-    computeBindings[EntityDescriptorBindings::Compute::PARTICLE_BODY_BUFFER].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-    // Binding 13: Body data buffer (per body)
+    // Binding 12: Body data buffer (per body)
     computeBindings[EntityDescriptorBindings::Compute::BODY_DATA_BUFFER].binding = EntityDescriptorBindings::Compute::BODY_DATA_BUFFER;
     computeBindings[EntityDescriptorBindings::Compute::BODY_DATA_BUFFER].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     computeBindings[EntityDescriptorBindings::Compute::BODY_DATA_BUFFER].descriptorCount = 1;
     computeBindings[EntityDescriptorBindings::Compute::BODY_DATA_BUFFER].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-    // Binding 14: Body params buffer (per body)
+    // Binding 13: Body params buffer (per body)
     computeBindings[EntityDescriptorBindings::Compute::BODY_PARAMS_BUFFER].binding = EntityDescriptorBindings::Compute::BODY_PARAMS_BUFFER;
     computeBindings[EntityDescriptorBindings::Compute::BODY_PARAMS_BUFFER].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     computeBindings[EntityDescriptorBindings::Compute::BODY_PARAMS_BUFFER].descriptorCount = 1;
     computeBindings[EntityDescriptorBindings::Compute::BODY_PARAMS_BUFFER].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-    // Binding 15: Distance constraint buffer (per constraint)
-    computeBindings[EntityDescriptorBindings::Compute::DISTANCE_CONSTRAINT_BUFFER].binding = EntityDescriptorBindings::Compute::DISTANCE_CONSTRAINT_BUFFER;
-    computeBindings[EntityDescriptorBindings::Compute::DISTANCE_CONSTRAINT_BUFFER].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    computeBindings[EntityDescriptorBindings::Compute::DISTANCE_CONSTRAINT_BUFFER].descriptorCount = 1;
-    computeBindings[EntityDescriptorBindings::Compute::DISTANCE_CONSTRAINT_BUFFER].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    // Binding 14: Triangle rest data buffer (DmInv)
+    computeBindings[EntityDescriptorBindings::Compute::TRI_REST_BUFFER].binding = EntityDescriptorBindings::Compute::TRI_REST_BUFFER;
+    computeBindings[EntityDescriptorBindings::Compute::TRI_REST_BUFFER].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    computeBindings[EntityDescriptorBindings::Compute::TRI_REST_BUFFER].descriptorCount = 1;
+    computeBindings[EntityDescriptorBindings::Compute::TRI_REST_BUFFER].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    // Binding 15: Triangle rest area buffer
+    computeBindings[EntityDescriptorBindings::Compute::TRI_AREA_BUFFER].binding = EntityDescriptorBindings::Compute::TRI_AREA_BUFFER;
+    computeBindings[EntityDescriptorBindings::Compute::TRI_AREA_BUFFER].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    computeBindings[EntityDescriptorBindings::Compute::TRI_AREA_BUFFER].descriptorCount = 1;
+    computeBindings[EntityDescriptorBindings::Compute::TRI_AREA_BUFFER].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    // Binding 16: Node force buffer (per node)
+    computeBindings[EntityDescriptorBindings::Compute::NODE_FORCE_BUFFER].binding = EntityDescriptorBindings::Compute::NODE_FORCE_BUFFER;
+    computeBindings[EntityDescriptorBindings::Compute::NODE_FORCE_BUFFER].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    computeBindings[EntityDescriptorBindings::Compute::NODE_FORCE_BUFFER].descriptorCount = 1;
+    computeBindings[EntityDescriptorBindings::Compute::NODE_FORCE_BUFFER].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    // Binding 17: Node rest buffer (per node)
+    computeBindings[EntityDescriptorBindings::Compute::NODE_REST_BUFFER].binding = EntityDescriptorBindings::Compute::NODE_REST_BUFFER;
+    computeBindings[EntityDescriptorBindings::Compute::NODE_REST_BUFFER].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    computeBindings[EntityDescriptorBindings::Compute::NODE_REST_BUFFER].descriptorCount = 1;
+    computeBindings[EntityDescriptorBindings::Compute::NODE_REST_BUFFER].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
     VkDescriptorSetLayoutCreateInfo computeLayoutInfo{};
     computeLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -348,12 +360,14 @@ bool EntityDescriptorManager::updateComputeDescriptorSet() {
         {EntityDescriptorBindings::Compute::SPATIAL_MAP_BUFFER, bufferManager->getSpatialMapBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
         {EntityDescriptorBindings::Compute::CONTROL_PARAMS_BUFFER, bufferManager->getControlParamsBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
         {EntityDescriptorBindings::Compute::SPATIAL_NEXT_BUFFER, bufferManager->getSpatialNextBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
-        {EntityDescriptorBindings::Compute::PARTICLE_VELOCITY_BUFFER, bufferManager->getParticleVelocityBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
-        {EntityDescriptorBindings::Compute::PARTICLE_INV_MASS_BUFFER, bufferManager->getParticleInvMassBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
-        {EntityDescriptorBindings::Compute::PARTICLE_BODY_BUFFER, bufferManager->getParticleBodyBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
+        {EntityDescriptorBindings::Compute::NODE_VELOCITY_BUFFER, bufferManager->getNodeVelocityBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
+        {EntityDescriptorBindings::Compute::NODE_INV_MASS_BUFFER, bufferManager->getNodeInvMassBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
         {EntityDescriptorBindings::Compute::BODY_DATA_BUFFER, bufferManager->getBodyDataBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
         {EntityDescriptorBindings::Compute::BODY_PARAMS_BUFFER, bufferManager->getBodyParamsBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
-        {EntityDescriptorBindings::Compute::DISTANCE_CONSTRAINT_BUFFER, bufferManager->getDistanceConstraintBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER}
+        {EntityDescriptorBindings::Compute::TRI_REST_BUFFER, bufferManager->getTriangleRestBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
+        {EntityDescriptorBindings::Compute::TRI_AREA_BUFFER, bufferManager->getTriangleAreaBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
+        {EntityDescriptorBindings::Compute::NODE_FORCE_BUFFER, bufferManager->getNodeForceBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
+        {EntityDescriptorBindings::Compute::NODE_REST_BUFFER, bufferManager->getNodeRestBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER}
     };
 
     return DescriptorUpdateHelper::updateDescriptorSet(*getContext(), computeDescriptorSet, bindings);

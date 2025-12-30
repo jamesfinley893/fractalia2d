@@ -1,0 +1,480 @@
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(push_constant) uniform FEMPushConstants {
+    float time;
+    float deltaTime;
+    uint bodyCount;
+    uint nodeCount;
+    uint frame;
+    uint elementOffset;
+    uint mode;
+    uint padding;
+} pc;
+
+layout(std430, binding = 0) buffer VelocityBuffer {
+    vec4 velocities[];
+} velocityBuffer;
+
+layout(std430, binding = 1) buffer MovementParamsBuffer {
+    vec4 movementParams[];
+} movementParamsBuffer;
+
+layout(std430, binding = 2) buffer RuntimeStateBuffer {
+    vec4 runtimeStates[];
+} runtimeStateBuffer;
+
+layout(std430, binding = 3) buffer PositionBuffer {
+    vec4 positions[];
+} positionBuffer;
+
+layout(std430, binding = 4) buffer CurrentPositionBuffer {
+    vec4 currentPositions[];
+} currentPositionBuffer;
+
+layout(std430, binding = 7) buffer SpatialMapBuffer {
+    uvec2 spatialCells[];
+} spatialMapBuffer;
+
+layout(std430, binding = 8) buffer ControlParamsBuffer {
+    vec4 controlParams[];
+} controlParamsBuffer;
+
+layout(std430, binding = 9) buffer SpatialNextBuffer {
+    uint nextIndices[];
+} spatialNextBuffer;
+
+layout(std430, binding = 10) buffer NodeVelocityBuffer {
+    vec4 nodeVelocities[];
+} nodeVelocityBuffer;
+
+layout(std430, binding = 11) buffer NodeInvMassBuffer {
+    float nodeInvMasses[];
+} nodeInvMassBuffer;
+
+layout(std430, binding = 12) buffer BodyDataBuffer {
+    uvec4 bodyData[];
+} bodyDataBuffer;
+
+layout(std430, binding = 13) buffer BodyParamsBuffer {
+    vec4 bodyParams[];
+} bodyParamsBuffer;
+
+layout(std430, binding = 14) buffer TriangleRestBuffer {
+    vec4 triRestData[];
+} triangleRestBuffer;
+
+layout(std430, binding = 15) buffer TriangleAreaBuffer {
+    float triRestArea[];
+} triangleAreaBuffer;
+
+layout(std430, binding = 16) buffer NodeForceBuffer {
+    vec4 nodeForces[];
+} nodeForceBuffer;
+
+layout(std430, binding = 17) buffer NodeRestBuffer {
+    vec4 restPositions[];
+} nodeRestBuffer;
+
+const uint MODE_CLEAR_FORCES = 0u;
+const uint MODE_PREDICT = 1u;
+const uint MODE_LOCAL = 2u;
+const uint MODE_GLOBAL = 3u;
+const uint MODE_CLEAR_SPATIAL = 4u;
+const uint MODE_BUILD_SPATIAL = 5u;
+const uint MODE_CONTACT_IMPULSE = 6u;
+const uint MODE_UPDATE_VELOCITY = 7u;
+
+const float CELL_SIZE = 3.0;
+const uint GRID_WIDTH = 64;
+const uint GRID_HEIGHT = 64;
+const uint SPATIAL_MAP_SIZE = GRID_WIDTH * GRID_HEIGHT;
+const uint NULL_INDEX = 0xFFFFFFFFu;
+const uint MAX_BODIES_PER_CELL = 64;
+
+const float GRAVITY = -4.0;
+const float BAUMGARTE_BETA = 0.2;
+
+uint spatialHash(vec2 position) {
+    ivec2 gridCoord = ivec2(floor(position / CELL_SIZE));
+    uint x = uint(gridCoord.x) & (GRID_WIDTH - 1);
+    uint y = uint(gridCoord.y) & (GRID_HEIGHT - 1);
+    return x + y * GRID_WIDTH;
+}
+
+void clearSpatial(uint cellIndex) {
+    spatialMapBuffer.spatialCells[cellIndex] = uvec2(NULL_INDEX, 0);
+}
+
+void buildSpatial(uint bodyIndex, vec2 center) {
+    uint cellIndex = spatialHash(center);
+    uint expectedHead;
+    do {
+        expectedHead = spatialMapBuffer.spatialCells[cellIndex].x;
+    } while (atomicCompSwap(spatialMapBuffer.spatialCells[cellIndex].x, expectedHead, bodyIndex) != expectedHead);
+    spatialNextBuffer.nextIndices[bodyIndex] = expectedHead;
+}
+
+void clearGoals(uint nodeIndex) {
+    nodeForceBuffer.nodeForces[nodeIndex] = vec4(0.0);
+}
+
+mat2 polarRotation(mat2 F) {
+    vec2 c0 = vec2(F[0][0], F[1][0]);
+    vec2 c1 = vec2(F[0][1], F[1][1]);
+    float c0Len = length(c0);
+    if (c0Len < 1e-6) {
+        return mat2(1.0);
+    }
+    vec2 r0 = c0 / c0Len;
+    vec2 r1 = c1 - dot(r0, c1) * r0;
+    float r1Len = length(r1);
+    if (r1Len < 1e-6) {
+        r1 = vec2(-r0.y, r0.x);
+    } else {
+        r1 /= r1Len;
+    }
+    if (r0.x * r1.y - r0.y * r1.x < 0.0) {
+        r1 = -r1;
+    }
+    return mat2(r0, r1);
+}
+
+void computeGoals(uint bodyIndex) {
+    if (bodyIndex >= pc.bodyCount) {
+        return;
+    }
+
+    uvec4 data = bodyDataBuffer.bodyData[bodyIndex];
+    uint offset = data.x;
+
+    vec2 x0 = positionBuffer.positions[offset + 0u].xy;
+    vec2 x1 = positionBuffer.positions[offset + 1u].xy;
+    vec2 x2 = positionBuffer.positions[offset + 2u].xy;
+
+    vec2 r0 = nodeRestBuffer.restPositions[offset + 0u].xy;
+    vec2 r1 = nodeRestBuffer.restPositions[offset + 1u].xy;
+    vec2 r2 = nodeRestBuffer.restPositions[offset + 2u].xy;
+
+    vec2 xCm = (x0 + x1 + x2) / 3.0;
+    vec2 rCm = (r0 + r1 + r2) / 3.0;
+
+    mat2 A = mat2(0.0);
+    A += outerProduct(x0 - xCm, r0 - rCm);
+    A += outerProduct(x1 - xCm, r1 - rCm);
+    A += outerProduct(x2 - xCm, r2 - rCm);
+
+    mat2 R = polarRotation(A);
+
+    vec2 g0 = xCm + R * (r0 - rCm);
+    vec2 g1 = xCm + R * (r1 - rCm);
+    vec2 g2 = xCm + R * (r2 - rCm);
+
+    vec4 params = bodyParamsBuffer.bodyParams[bodyIndex];
+    float stiffness = params.x;
+
+    nodeForceBuffer.nodeForces[offset + 0u] = vec4(g0, stiffness, 0.0);
+    nodeForceBuffer.nodeForces[offset + 1u] = vec4(g1, stiffness, 0.0);
+    nodeForceBuffer.nodeForces[offset + 2u] = vec4(g2, stiffness, 0.0);
+}
+
+void predictPosition(uint nodeIndex) {
+    if (nodeIndex >= pc.nodeCount) {
+        return;
+    }
+
+    vec2 vel = nodeVelocityBuffer.nodeVelocities[nodeIndex].xy;
+    float invMass = nodeInvMassBuffer.nodeInvMasses[nodeIndex];
+
+    vec2 accel = vec2(0.0, GRAVITY);
+
+    uint bodyIndex = nodeIndex / 3u;
+    if (bodyIndex < pc.bodyCount) {
+        vec4 control = controlParamsBuffer.controlParams[bodyIndex];
+        vec2 drive = velocityBuffer.velocities[bodyIndex].xy;
+        if (control.z > 0.5) {
+            drive = control.xy;
+        }
+        accel += (drive - vel) * 6.0;
+    }
+
+    vel += accel * pc.deltaTime;
+    nodeVelocityBuffer.nodeVelocities[nodeIndex].xy = vel;
+
+    vec2 pos = positionBuffer.positions[nodeIndex].xy;
+    positionBuffer.positions[nodeIndex].xy = pos + vel * pc.deltaTime;
+}
+
+vec2 bodyCenter(uint bodyIndex) {
+    uvec4 data = bodyDataBuffer.bodyData[bodyIndex];
+    uint offset = data.x;
+    vec2 p0 = positionBuffer.positions[offset + 0u].xy;
+    vec2 p1 = positionBuffer.positions[offset + 1u].xy;
+    vec2 p2 = positionBuffer.positions[offset + 2u].xy;
+    return (p0 + p1 + p2) / 3.0;
+}
+
+bool pointInTriangle(vec2 p, vec2 a, vec2 b, vec2 c) {
+    vec2 v0 = c - a;
+    vec2 v1 = b - a;
+    vec2 v2 = p - a;
+    float dot00 = dot(v0, v0);
+    float dot01 = dot(v0, v1);
+    float dot02 = dot(v0, v2);
+    float dot11 = dot(v1, v1);
+    float dot12 = dot(v1, v2);
+    float invDenom = 1.0 / (dot00 * dot11 - dot01 * dot01);
+    float u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+    float v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+    return (u >= 0.0) && (v >= 0.0) && (u + v <= 1.0);
+}
+
+float signedDistanceToEdge(vec2 p, vec2 a, vec2 b, out vec2 normalOut) {
+    vec2 edge = b - a;
+    normalOut = normalize(vec2(-edge.y, edge.x));
+    return dot(p - a, normalOut);
+}
+
+bool triangleContact(uint aBody, uint bBody, out vec2 normal, out float penetration) {
+    uvec4 aData = bodyDataBuffer.bodyData[aBody];
+    uvec4 bData = bodyDataBuffer.bodyData[bBody];
+    vec2 a0 = positionBuffer.positions[aData.x + 0u].xy;
+    vec2 a1 = positionBuffer.positions[aData.x + 1u].xy;
+    vec2 a2 = positionBuffer.positions[aData.x + 2u].xy;
+    vec2 b0 = positionBuffer.positions[bData.x + 0u].xy;
+    vec2 b1 = positionBuffer.positions[bData.x + 1u].xy;
+    vec2 b2 = positionBuffer.positions[bData.x + 2u].xy;
+
+    vec2 candidates[6] = vec2[](
+        normalize(vec2(a1.y - a0.y, a0.x - a1.x)),
+        normalize(vec2(a2.y - a1.y, a1.x - a2.x)),
+        normalize(vec2(a0.y - a2.y, a2.x - a0.x)),
+        normalize(vec2(b1.y - b0.y, b0.x - b1.x)),
+        normalize(vec2(b2.y - b1.y, b1.x - b2.x)),
+        normalize(vec2(b0.y - b2.y, b2.x - b0.x))
+    );
+
+    float minPen = 1e9;
+    vec2 bestAxis = vec2(0.0);
+    for (int i = 0; i < 6; ++i) {
+        vec2 axis = candidates[i];
+        float aMin = min(dot(a0, axis), min(dot(a1, axis), dot(a2, axis)));
+        float aMax = max(dot(a0, axis), max(dot(a1, axis), dot(a2, axis)));
+        float bMin = min(dot(b0, axis), min(dot(b1, axis), dot(b2, axis)));
+        float bMax = max(dot(b0, axis), max(dot(b1, axis), dot(b2, axis)));
+        float overlap = min(aMax, bMax) - max(aMin, bMin);
+        if (overlap <= 0.0) {
+            return false;
+        }
+        if (overlap < minPen) {
+            minPen = overlap;
+            bestAxis = axis;
+        }
+    }
+
+    vec2 centers = bodyCenter(aBody) - bodyCenter(bBody);
+    if (dot(bestAxis, centers) < 0.0) {
+        bestAxis = -bestAxis;
+    }
+    normal = bestAxis;
+    penetration = minPen;
+    return true;
+}
+
+float bodyInvMass(uint bodyIndex) {
+    uvec4 data = bodyDataBuffer.bodyData[bodyIndex];
+    return nodeInvMassBuffer.nodeInvMasses[data.x + 0u] +
+           nodeInvMassBuffer.nodeInvMasses[data.x + 1u] +
+           nodeInvMassBuffer.nodeInvMasses[data.x + 2u];
+}
+
+void applyImpulse(uint bodyIndex, vec2 impulse, float totalInvMass) {
+    uvec4 data = bodyDataBuffer.bodyData[bodyIndex];
+    uint offset = data.x;
+    for (uint i = 0; i < 3u; ++i) {
+        float invMass = nodeInvMassBuffer.nodeInvMasses[offset + i];
+        vec2 v = nodeVelocityBuffer.nodeVelocities[offset + i].xy;
+        float weight = (totalInvMass > 0.0) ? (invMass / totalInvMass) : 0.0;
+        v += impulse * weight;
+        nodeVelocityBuffer.nodeVelocities[offset + i].xy = v;
+    }
+}
+
+void applyPositionCorrection(uint bodyIndex, vec2 correction, float totalInvMass) {
+    uvec4 data = bodyDataBuffer.bodyData[bodyIndex];
+    uint offset = data.x;
+    for (uint i = 0; i < 3u; ++i) {
+        float invMass = nodeInvMassBuffer.nodeInvMasses[offset + i];
+        float weight = (totalInvMass > 0.0) ? (invMass / totalInvMass) : 0.0;
+        vec2 p = positionBuffer.positions[offset + i].xy;
+        p += correction * weight;
+        positionBuffer.positions[offset + i].xy = p;
+    }
+}
+
+void contactImpulse(uint bodyIndex) {
+    if (bodyIndex >= pc.bodyCount) {
+        return;
+    }
+
+    vec2 center = bodyCenter(bodyIndex);
+    uint cellIndex = spatialHash(center);
+
+    const int offsets[9][2] = int[9][2](
+        int[2](0, 0), int[2](-1, 0), int[2](1, 0),
+        int[2](0, -1), int[2](0, 1),
+        int[2](-1, -1), int[2](1, -1),
+        int[2](-1, 1), int[2](1, 1)
+    );
+
+    for (int cellIdx = 0; cellIdx < 9; ++cellIdx) {
+        int dx = offsets[cellIdx][0];
+        int dy = offsets[cellIdx][1];
+        int cellX = int(cellIndex % GRID_WIDTH) + dx;
+        int cellY = int(cellIndex / GRID_WIDTH) + dy;
+        cellX = ((cellX % int(GRID_WIDTH)) + int(GRID_WIDTH)) % int(GRID_WIDTH);
+        cellY = ((cellY % int(GRID_HEIGHT)) + int(GRID_HEIGHT)) % int(GRID_HEIGHT);
+        uint neighborCell = uint(cellX + cellY * int(GRID_WIDTH));
+
+        uint current = spatialMapBuffer.spatialCells[neighborCell].x;
+        while (current != NULL_INDEX && current < pc.bodyCount) {
+            if (current != bodyIndex && current > bodyIndex) {
+                vec2 normal;
+                float penetration;
+                if (triangleContact(bodyIndex, current, normal, penetration)) {
+                    uvec4 dataA = bodyDataBuffer.bodyData[bodyIndex];
+                    uvec4 dataB = bodyDataBuffer.bodyData[current];
+                    vec2 vA = (nodeVelocityBuffer.nodeVelocities[dataA.x + 0u].xy +
+                               nodeVelocityBuffer.nodeVelocities[dataA.x + 1u].xy +
+                               nodeVelocityBuffer.nodeVelocities[dataA.x + 2u].xy) / 3.0;
+                    vec2 vB = (nodeVelocityBuffer.nodeVelocities[dataB.x + 0u].xy +
+                               nodeVelocityBuffer.nodeVelocities[dataB.x + 1u].xy +
+                               nodeVelocityBuffer.nodeVelocities[dataB.x + 2u].xy) / 3.0;
+
+                    vec4 paramsA = bodyParamsBuffer.bodyParams[bodyIndex];
+                    vec4 paramsB = bodyParamsBuffer.bodyParams[current];
+                    float restitution = min(paramsA.z, paramsB.z);
+                    float friction = min(paramsA.w, paramsB.w);
+
+                    vec2 relVel = vA - vB;
+                    float velAlongNormal = dot(relVel, normal);
+                    float bias = BAUMGARTE_BETA * max(penetration - 0.001, 0.0) / max(pc.deltaTime, 0.0001);
+
+                    float invMassA = bodyInvMass(bodyIndex);
+                    float invMassB = bodyInvMass(current);
+                    float invMassSum = max(invMassA + invMassB, 1e-6);
+                    vec2 correction = normal * (penetration / invMassSum);
+                    applyPositionCorrection(bodyIndex, correction, invMassA);
+                    applyPositionCorrection(current, -correction, invMassB);
+
+                    if (velAlongNormal < bias) {
+                        float j = -(1.0 + restitution) * (velAlongNormal - bias);
+                        float impulseMag = j / invMassSum;
+                        vec2 impulse = impulseMag * normal;
+                        applyImpulse(bodyIndex, impulse, invMassA);
+                        applyImpulse(current, -impulse, invMassB);
+
+                        vec2 tangent = relVel - velAlongNormal * normal;
+                        float tangentLen = length(tangent);
+                        if (tangentLen > 1e-4) {
+                            vec2 tDir = tangent / tangentLen;
+                            float jt = -dot(relVel, tDir);
+                            float maxFriction = friction * impulseMag;
+                            jt = clamp(jt, -maxFriction, maxFriction);
+                            vec2 tImpulse = jt * tDir;
+                            applyImpulse(bodyIndex, tImpulse, invMassA);
+                            applyImpulse(current, -tImpulse, invMassB);
+                        }
+                    }
+                }
+            }
+            current = spatialNextBuffer.nextIndices[current];
+        }
+    }
+}
+
+void globalStep(uint nodeIndex) {
+    if (nodeIndex >= pc.nodeCount) {
+        return;
+    }
+
+    vec2 predicted = positionBuffer.positions[nodeIndex].xy;
+    vec4 goal = nodeForceBuffer.nodeForces[nodeIndex];
+    float stiffness = goal.z;
+    float invMass = nodeInvMassBuffer.nodeInvMasses[nodeIndex];
+    float mass = (invMass > 0.0) ? (1.0 / invMass) : 0.0;
+    vec2 newPos = (mass * predicted + stiffness * goal.xy) / (mass + stiffness);
+    positionBuffer.positions[nodeIndex].xy = newPos;
+}
+
+void updateVelocity(uint nodeIndex) {
+    if (nodeIndex >= pc.nodeCount) {
+        return;
+    }
+
+    vec2 pos = positionBuffer.positions[nodeIndex].xy;
+    vec2 prev = currentPositionBuffer.currentPositions[nodeIndex].xy;
+    vec2 vel = (pos - prev) / max(pc.deltaTime, 0.0001);
+    nodeVelocityBuffer.nodeVelocities[nodeIndex].xy = vel;
+    currentPositionBuffer.currentPositions[nodeIndex] = vec4(pos, 0.0, 1.0);
+}
+
+void main() {
+    uint index = gl_GlobalInvocationID.x + pc.elementOffset;
+
+    if (pc.mode == MODE_CLEAR_FORCES) {
+        if (index < pc.nodeCount) {
+            clearGoals(index);
+        }
+        return;
+    }
+
+    if (pc.mode == MODE_PREDICT) {
+        if (index < pc.nodeCount) {
+            predictPosition(index);
+        }
+        return;
+    }
+
+    if (pc.mode == MODE_LOCAL) {
+        if (index < pc.bodyCount) {
+            computeGoals(index);
+        }
+        return;
+    }
+
+    if (pc.mode == MODE_GLOBAL) {
+        if (index < pc.nodeCount) {
+            globalStep(index);
+        }
+        return;
+    }
+
+    if (pc.mode == MODE_CLEAR_SPATIAL) {
+        if (index < SPATIAL_MAP_SIZE) {
+            clearSpatial(index);
+        }
+        return;
+    }
+
+    if (pc.mode == MODE_BUILD_SPATIAL) {
+        if (index < pc.bodyCount) {
+            buildSpatial(index, bodyCenter(index));
+        }
+        return;
+    }
+
+    if (pc.mode == MODE_CONTACT_IMPULSE) {
+        if (index < pc.bodyCount) {
+            contactImpulse(index);
+        }
+        return;
+    }
+
+    if (pc.mode == MODE_UPDATE_VELOCITY) {
+        if (index < pc.nodeCount) {
+            updateVelocity(index);
+        }
+    }
+}

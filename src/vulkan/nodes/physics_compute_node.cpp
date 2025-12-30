@@ -51,12 +51,14 @@ std::vector<ResourceDependency> PhysicsComputeNode::getInputs() const {
         {data.spatialMapBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
         {data.controlParamsBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
         {data.spatialNextBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
-        {data.particleVelocityBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
-        {data.particleInvMassBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
-        {data.particleBodyBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
         {data.bodyDataBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
         {data.bodyParamsBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
-        {data.distanceConstraintBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
+        {data.nodeVelocityBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
+        {data.nodeInvMassBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
+        {data.triangleRestBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
+        {data.triangleAreaBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
+        {data.nodeForceBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
+        {data.nodeRestBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
     };
 }
 
@@ -67,7 +69,8 @@ std::vector<ResourceDependency> PhysicsComputeNode::getOutputs() const {
         {data.positionBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
         {data.currentPositionBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
         {data.spatialMapBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
-        {data.particleVelocityBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
+        {data.nodeVelocityBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
+        {data.nodeForceBufferId, ResourceAccess::Write, PipelineStage::ComputeShader},
     };
 }
 
@@ -139,15 +142,13 @@ void PhysicsComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
         return;
     }
     
-    const uint32_t particleCount = bodyCount * SoftBodyConstants::kParticlesPerBody;
-    const uint32_t constraintCount = bodyCount * SoftBodyConstants::kConstraintsPerBody;
+    const uint32_t nodeCount = bodyCount * SoftBodyConstants::kParticlesPerBody;
 
     // Configure push constants and dispatch
     pushConstants.bodyCount = bodyCount;
-    pushConstants.particleCount = particleCount;
-    pushConstants.constraintCount = constraintCount;
+    pushConstants.nodeCount = nodeCount;
     dispatch.pushConstantData = &pushConstants;
-    dispatch.pushConstantSize = sizeof(PBDPushConstants);
+    dispatch.pushConstantSize = sizeof(FEMPushConstants);
     dispatch.pushConstantStages = VK_SHADER_STAGE_COMPUTE_BIT;
     
     // Apply adaptive workload management
@@ -170,7 +171,7 @@ void PhysicsComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
     
     // Calculate dispatch parameters
     // Debug logging (thread-safe) - once every 30 seconds
-    FRAME_GRAPH_DEBUG_LOG_THROTTLED(debugCounter, 1800, "PhysicsComputeNode: " << bodyCount << " bodies, " << particleCount << " particles");
+    FRAME_GRAPH_DEBUG_LOG_THROTTLED(debugCounter, 1800, "PhysicsComputeNode: " << bodyCount << " bodies, " << nodeCount << " nodes");
     
     const VulkanContext* context = frameGraph.getContext();
     if (!context) {
@@ -208,7 +209,7 @@ void PhysicsComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
 
             vk.vkCmdPushConstants(
                 commandBuffer, dispatch.layout, VK_SHADER_STAGE_COMPUTE_BIT,
-                0, sizeof(PBDPushConstants), &pushConstants);
+                0, sizeof(FEMPushConstants), &pushConstants);
 
             vk.vkCmdDispatch(commandBuffer, dispatchParams.totalWorkgroups, 1, 1);
 
@@ -235,18 +236,20 @@ void PhysicsComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
         }
     };
 
-    dispatchPass("PBD_Integrate", 0u, particleCount, false);
-    dispatchPass("PBD_ClearSpatial", 1u, 4096u, false);
-    dispatchPass("PBD_BuildSpatial", 2u, particleCount, false);
-
-    constexpr uint32_t solverIterations = 8;
-    for (uint32_t iter = 0; iter < solverIterations; ++iter) {
-        dispatchPass("PBD_SolveDistance", 3u, constraintCount, false);
-        dispatchPass("PBD_SolveArea", 4u, bodyCount, false);
-        dispatchPass("PBD_Collide", 5u, particleCount, false);
+    constexpr uint32_t substeps = 4;
+    constexpr uint32_t pdIterations = 6;
+    for (uint32_t step = 0; step < substeps; ++step) {
+        dispatchPass("PD_ClearGoals", 0u, nodeCount, false);
+        dispatchPass("PD_Predict", 1u, nodeCount, false);
+        for (uint32_t iter = 0; iter < pdIterations; ++iter) {
+            dispatchPass("PD_Local", 2u, bodyCount, false);
+            dispatchPass("PD_Global", 3u, nodeCount, false);
+        }
+        dispatchPass("PD_ClearSpatial", 4u, 4096u, false);
+        dispatchPass("PD_BuildSpatial", 5u, bodyCount, false);
+        dispatchPass("PD_ContactImpulse", 6u, bodyCount, false);
+        dispatchPass("PD_UpdateVelocity", 7u, nodeCount, step + 1 == substeps);
     }
-
-    dispatchPass("PBD_Finalize", 6u, particleCount, true);
 }
 
 void PhysicsComputeNode::executeChunkedDispatch(
@@ -277,12 +280,12 @@ void PhysicsComputeNode::executeChunkedDispatch(
         }
         
         // Update push constants for this chunk
-        PBDPushConstants chunkPushConstants = pushConstants;
+        FEMPushConstants chunkPushConstants = pushConstants;
         chunkPushConstants.elementOffset = baseElementOffset;
-        
+
         vk.vkCmdPushConstants(
             commandBuffer, dispatch.layout, VK_SHADER_STAGE_COMPUTE_BIT,
-            0, sizeof(PBDPushConstants), &chunkPushConstants);
+            0, sizeof(FEMPushConstants), &chunkPushConstants);
         
         vk.vkCmdDispatch(commandBuffer, currentChunkSize, 1, 1);
         
