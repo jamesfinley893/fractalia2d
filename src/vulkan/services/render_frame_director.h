@@ -69,6 +69,7 @@ public:
         FrameGraphTypes::ResourceId triangleAreaBufferId,
         FrameGraphTypes::ResourceId nodeForceBufferId,
         FrameGraphTypes::ResourceId nodeRestBufferId,
+        FrameGraphTypes::ResourceId triangleIndexBufferId,
         FrameGraphTypes::ResourceId positionBufferId,
         FrameGraphTypes::ResourceId currentPositionBufferId,
         FrameGraphTypes::ResourceId targetPositionBufferId
@@ -108,6 +109,7 @@ private:
     FrameGraphTypes::ResourceId triangleAreaBufferId = 0;
     FrameGraphTypes::ResourceId nodeForceBufferId = 0;
     FrameGraphTypes::ResourceId nodeRestBufferId = 0;
+    FrameGraphTypes::ResourceId triangleIndexBufferId = 0;
     FrameGraphTypes::ResourceId positionBufferId = 0;
     FrameGraphTypes::ResourceId currentPositionBufferId = 0;
     FrameGraphTypes::ResourceId targetPositionBufferId = 0;

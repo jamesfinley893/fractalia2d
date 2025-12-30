@@ -139,6 +139,13 @@ bool FrameGraphResourceRegistry::importEntityResources() {
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
     );
 
+    triangleIndexBufferId = frameGraph->importExternalBuffer(
+        "TriangleIndexBuffer",
+        gpuEntityManager->getTriangleIndexBuffer(),
+        gpuEntityManager->getTriangleIndexBufferSize(),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    );
+
     // Import position buffer
     positionBufferId = frameGraph->importExternalBuffer(
         "PositionBuffer",

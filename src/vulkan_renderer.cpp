@@ -356,6 +356,7 @@ bool VulkanRenderer::initializeModularArchitecture() {
         resourceRegistry->getTriangleAreaBufferId(),
         resourceRegistry->getNodeForceBufferId(),
         resourceRegistry->getNodeRestBufferId(),
+        resourceRegistry->getTriangleIndexBufferId(),
         resourceRegistry->getPositionBufferId(),
         resourceRegistry->getCurrentPositionBufferId(),
         resourceRegistry->getTargetPositionBufferId()

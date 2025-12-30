@@ -565,8 +565,16 @@ namespace DescriptorLayoutPresets {
         controlBinding.descriptorCount = 1;
         controlBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
         controlBinding.debugName = "controlParamsBuffer";
+
+        // Storage buffer for triangle indices
+        DescriptorBinding triIndexBinding{};
+        triIndexBinding.binding = 4;
+        triIndexBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        triIndexBinding.descriptorCount = 1;
+        triIndexBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        triIndexBinding.debugName = "triangleIndexBuffer";
         
-        spec.bindings = {uboBinding, entityBinding, positionBinding, controlBinding};
+        spec.bindings = {uboBinding, entityBinding, positionBinding, controlBinding, triIndexBinding};
         return spec;
     }
     
@@ -719,8 +727,16 @@ namespace DescriptorLayoutPresets {
         nodeRestBinding.descriptorCount = 1;
         nodeRestBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
         nodeRestBinding.debugName = "nodeRestBuffer";
+
+        // Binding 18: TriangleIndexBuffer
+        DescriptorBinding triIndexBinding{};
+        triIndexBinding.binding = 18;
+        triIndexBinding.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        triIndexBinding.descriptorCount = 1;
+        triIndexBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        triIndexBinding.debugName = "triangleIndexBuffer";
         
-        spec.bindings = {velocityBinding, movementParamsBinding, runtimeStateBinding, positionOutputBinding, currentPosBinding, colorBinding, modelMatrixBinding, spatialMapBinding, controlParamsBinding, spatialNextBinding, nodeVelocityBinding, nodeInvMassBinding, bodyDataBinding, bodyParamsBinding, triRestBinding, triAreaBinding, nodeForceBinding, nodeRestBinding};
+        spec.bindings = {velocityBinding, movementParamsBinding, runtimeStateBinding, positionOutputBinding, currentPosBinding, colorBinding, modelMatrixBinding, spatialMapBinding, controlParamsBinding, spatialNextBinding, nodeVelocityBinding, nodeInvMassBinding, bodyDataBinding, bodyParamsBinding, triRestBinding, triAreaBinding, nodeForceBinding, nodeRestBinding, triIndexBinding};
         return spec;
     }
 }

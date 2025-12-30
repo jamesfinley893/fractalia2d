@@ -59,6 +59,7 @@ std::vector<ResourceDependency> PhysicsComputeNode::getInputs() const {
         {data.triangleAreaBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
         {data.nodeForceBufferId, ResourceAccess::ReadWrite, PipelineStage::ComputeShader},
         {data.nodeRestBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
+        {data.triangleIndexBufferId, ResourceAccess::Read, PipelineStage::ComputeShader},
     };
 }
 
@@ -143,10 +144,12 @@ void PhysicsComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
     }
     
     const uint32_t nodeCount = bodyCount * SoftBodyConstants::kParticlesPerBody;
+    const uint32_t triangleCount = bodyCount * SoftBodyConstants::kTrianglesPerBody;
 
     // Configure push constants and dispatch
     pushConstants.bodyCount = bodyCount;
     pushConstants.nodeCount = nodeCount;
+    pushConstants.triangleCount = triangleCount;
     dispatch.pushConstantData = &pushConstants;
     dispatch.pushConstantSize = sizeof(FEMPushConstants);
     dispatch.pushConstantStages = VK_SHADER_STAGE_COMPUTE_BIT;
@@ -239,16 +242,19 @@ void PhysicsComputeNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
     constexpr uint32_t substeps = 4;
     constexpr uint32_t pdIterations = 6;
     for (uint32_t step = 0; step < substeps; ++step) {
-        dispatchPass("PD_ClearGoals", 0u, nodeCount, false);
         dispatchPass("PD_Predict", 1u, nodeCount, false);
         for (uint32_t iter = 0; iter < pdIterations; ++iter) {
-            dispatchPass("PD_Local", 2u, bodyCount, false);
+            dispatchPass("PD_ClearGoals", 0u, nodeCount, false);
+            dispatchPass("PD_Local", 2u, triangleCount, false);
             dispatchPass("PD_Global", 3u, nodeCount, false);
+            dispatchPass("PD_ClearSpatial", 4u, 4096u, false);
+            dispatchPass("PD_BuildSpatial", 5u, bodyCount, false);
+            dispatchPass("PD_ContactConstraints", 6u, bodyCount, false);
         }
         dispatchPass("PD_ClearSpatial", 4u, 4096u, false);
         dispatchPass("PD_BuildSpatial", 5u, bodyCount, false);
-        dispatchPass("PD_ContactImpulse", 6u, bodyCount, false);
-        dispatchPass("PD_UpdateVelocity", 7u, nodeCount, step + 1 == substeps);
+        dispatchPass("PD_ContactVelocity", 7u, bodyCount, false);
+        dispatchPass("PD_UpdateVelocity", 8u, nodeCount, step + 1 == substeps);
     }
 }
 

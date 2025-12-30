@@ -40,6 +40,7 @@ public:
     VkBuffer getTriangleAreaBuffer() const { return triangleAreaBuffer.getBuffer(); }
     VkBuffer getNodeForceBuffer() const { return nodeForceBuffer.getBuffer(); }
     VkBuffer getNodeRestBuffer() const { return nodeRestBuffer.getBuffer(); }
+    VkBuffer getTriangleIndexBuffer() const { return triangleIndexBuffer.getBuffer(); }
     
     // Position buffers - delegated to coordinator
     VkBuffer getPositionBuffer() const { return positionCoordinator.getPrimaryBuffer(); }
@@ -69,6 +70,7 @@ public:
     VkDeviceSize getTriangleAreaBufferSize() const { return triangleAreaBuffer.getSize(); }
     VkDeviceSize getNodeForceBufferSize() const { return nodeForceBuffer.getSize(); }
     VkDeviceSize getNodeRestBufferSize() const { return nodeRestBuffer.getSize(); }
+    VkDeviceSize getTriangleIndexBufferSize() const { return triangleIndexBuffer.getSize(); }
     VkDeviceSize getPositionBufferSize() const { return positionCoordinator.getBufferSize(); }
     uint32_t getMaxEntities() const { return maxEntities; }
     uint32_t getMaxNodes() const { return maxNodes; }
@@ -93,6 +95,7 @@ public:
     bool uploadTriangleAreaData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
     bool uploadNodeForceData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
     bool uploadNodeRestData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
+    bool uploadTriangleIndexData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
     bool uploadPositionDataToAllBuffers(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
     
     // Debug readback methods (expensive - use sparingly)
@@ -138,6 +141,7 @@ private:
     TriangleAreaBuffer triangleAreaBuffer;
     NodeForceBuffer nodeForceBuffer;
     NodeRestBuffer nodeRestBuffer;
+    TriangleIndexBuffer triangleIndexBuffer;
     
     // Position buffer coordination
     PositionBufferCoordinator positionCoordinator;
@@ -145,6 +149,7 @@ private:
     // Shared upload service
     BufferUploadService uploadService;
     uint32_t maxNodes = 0;
+    uint32_t maxTriangles = 0;
     
 };
 

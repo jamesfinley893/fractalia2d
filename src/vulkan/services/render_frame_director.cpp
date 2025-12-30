@@ -73,6 +73,7 @@ bool RenderFrameDirector::initialize(
             triangleAreaBufferId,
             nodeForceBufferId,
             nodeRestBufferId,
+            triangleIndexBufferId,
             ctx.pipelineSystem ? ctx.pipelineSystem->getComputeManager() : nullptr,
             ctx.gpuEntityManager
         };
@@ -159,6 +160,7 @@ void RenderFrameDirector::updateResourceIds(
     FrameGraphTypes::ResourceId triangleAreaBufferId,
     FrameGraphTypes::ResourceId nodeForceBufferId,
     FrameGraphTypes::ResourceId nodeRestBufferId,
+    FrameGraphTypes::ResourceId triangleIndexBufferId,
     FrameGraphTypes::ResourceId positionBufferId,
     FrameGraphTypes::ResourceId currentPositionBufferId,
     FrameGraphTypes::ResourceId targetPositionBufferId
@@ -179,6 +181,7 @@ void RenderFrameDirector::updateResourceIds(
     this->triangleAreaBufferId = triangleAreaBufferId;
     this->nodeForceBufferId = nodeForceBufferId;
     this->nodeRestBufferId = nodeRestBufferId;
+    this->triangleIndexBufferId = triangleIndexBufferId;
     this->positionBufferId = positionBufferId;
     this->currentPositionBufferId = currentPositionBufferId;
     this->targetPositionBufferId = targetPositionBufferId;

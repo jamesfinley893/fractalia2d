@@ -4,6 +4,7 @@
 #include "../resources/core/resource_coordinator.h"
 #include "../resources/managers/graphics_resource_manager.h"
 #include "../../ecs/gpu/gpu_entity_manager.h"
+#include "../../ecs/gpu/soft_body_constants.h"
 #include "../core/vulkan_context.h"
 #include "../core/vulkan_function_loader.h"
 #include "../../ecs/components/camera_component.h"
@@ -221,6 +222,7 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
 
     // Draw entities
     if (entityCount > 0) {
+        constexpr uint32_t trianglesPerBody = SoftBodyConstants::kTrianglesPerBody;
         // Bind vertex buffer: only geometry vertices (SoA uses storage buffers for entity data)
         VkBuffer vertexBuffers[] = {
             data.resourceCoordinator->getGraphicsManager()->getVertexBuffer()      // Vertex positions for triangle geometry
@@ -236,7 +238,7 @@ void EntityGraphicsNode::execute(VkCommandBuffer commandBuffer, const FrameGraph
         vk.vkCmdDrawIndexed(
             commandBuffer, 
             data.resourceCoordinator->getGraphicsManager()->getIndexCount(),  // Number of indices per triangle
-            entityCount,                      // Number of instances (entities)
+            entityCount * trianglesPerBody,   // Number of instances (triangles)
             0, 0, 0                          // Index/vertex/instance offsets
         );
         

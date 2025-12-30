@@ -3,6 +3,6 @@
 #include <cstdint>
 
 namespace SoftBodyConstants {
-    constexpr uint32_t kParticlesPerBody = 3;
-    constexpr uint32_t kConstraintsPerBody = 3;
+    constexpr uint32_t kParticlesPerBody = 9;
+    constexpr uint32_t kTrianglesPerBody = 8;
 }

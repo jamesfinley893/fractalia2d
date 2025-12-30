@@ -19,6 +19,7 @@ bool EntityBufferManager::initialize(const VulkanContext& context, ResourceCoord
     this->maxEntities = maxEntities;
     this->context = &context;
     maxNodes = maxEntities * SoftBodyConstants::kParticlesPerBody;
+    maxTriangles = maxEntities * SoftBodyConstants::kTrianglesPerBody;
     
     // Initialize upload service
     if (!uploadService.initialize(resourceCoordinator)) {
@@ -119,6 +120,11 @@ bool EntityBufferManager::initialize(const VulkanContext& context, ResourceCoord
         return false;
     }
     
+    if (!triangleIndexBuffer.initialize(context, resourceCoordinator, maxTriangles)) {
+        std::cerr << "EntityBufferManager: Failed to initialize triangle index buffer" << std::endl;
+        return false;
+    }
+    
     std::cout << "EntityBufferManager: Initialized successfully for " << maxEntities << " entities using SRP-compliant design" << std::endl;
     return true;
 }
@@ -142,10 +148,12 @@ void EntityBufferManager::cleanup() {
     triangleAreaBuffer.cleanup();
     nodeForceBuffer.cleanup();
     nodeRestBuffer.cleanup();
+    triangleIndexBuffer.cleanup();
     uploadService.cleanup();
     
     maxEntities = 0;
     maxNodes = 0;
+    maxTriangles = 0;
 }
 
 
@@ -211,6 +219,10 @@ bool EntityBufferManager::uploadNodeForceData(const void* data, VkDeviceSize siz
 
 bool EntityBufferManager::uploadNodeRestData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
     return uploadService.upload(nodeRestBuffer, data, size, offset);
+}
+
+bool EntityBufferManager::uploadTriangleIndexData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
+    return uploadService.upload(triangleIndexBuffer, data, size, offset);
 }
 
 bool EntityBufferManager::uploadPositionDataToAllBuffers(const void* data, VkDeviceSize size, VkDeviceSize offset) {

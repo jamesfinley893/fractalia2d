@@ -230,3 +230,16 @@ public:
 protected:
     const char* getBufferTypeName() const override { return "NodeRest"; }
 };
+
+// SINGLE responsibility: triangle index data (per triangle)
+class TriangleIndexBuffer : public BufferBase {
+public:
+    using BufferBase::initialize;
+
+    bool initialize(const VulkanContext& context, ResourceCoordinator* resourceCoordinator, uint32_t maxTriangles) {
+        return BufferBase::initialize(context, resourceCoordinator, maxTriangles, sizeof(glm::uvec4), 0);
+    }
+
+protected:
+    const char* getBufferTypeName() const override { return "TriangleIndex"; }
+};

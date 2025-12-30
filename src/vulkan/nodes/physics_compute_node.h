@@ -33,6 +33,7 @@ public:
         FrameGraphTypes::ResourceId triangleAreaBufferId = 0;
         FrameGraphTypes::ResourceId nodeForceBufferId = 0;
         FrameGraphTypes::ResourceId nodeRestBufferId = 0;
+        FrameGraphTypes::ResourceId triangleIndexBufferId = 0;
         ComputePipelineManager* computeManager = nullptr;
         GPUEntityManager* gpuEntityManager = nullptr;
         std::shared_ptr<GPUTimeoutDetector> timeoutDetector = nullptr;
@@ -93,6 +94,7 @@ private:
         float deltaTime;
         uint32_t bodyCount;
         uint32_t nodeCount;
+        uint32_t triangleCount;
         uint32_t frame;
         uint32_t elementOffset;
         uint32_t mode;

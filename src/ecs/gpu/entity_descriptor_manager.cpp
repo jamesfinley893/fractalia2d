@@ -205,6 +205,12 @@ bool EntityDescriptorManager::createDescriptorSetLayouts() {
     computeBindings[EntityDescriptorBindings::Compute::NODE_REST_BUFFER].descriptorCount = 1;
     computeBindings[EntityDescriptorBindings::Compute::NODE_REST_BUFFER].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
+    // Binding 18: Triangle index buffer (per triangle)
+    computeBindings[EntityDescriptorBindings::Compute::TRI_INDEX_BUFFER].binding = EntityDescriptorBindings::Compute::TRI_INDEX_BUFFER;
+    computeBindings[EntityDescriptorBindings::Compute::TRI_INDEX_BUFFER].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    computeBindings[EntityDescriptorBindings::Compute::TRI_INDEX_BUFFER].descriptorCount = 1;
+    computeBindings[EntityDescriptorBindings::Compute::TRI_INDEX_BUFFER].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
     VkDescriptorSetLayoutCreateInfo computeLayoutInfo{};
     computeLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     computeLayoutInfo.bindingCount = EntityDescriptorBindings::Compute::BINDING_COUNT;
@@ -241,6 +247,12 @@ bool EntityDescriptorManager::createDescriptorSetLayouts() {
     graphicsBindings[EntityDescriptorBindings::Graphics::CONTROL_PARAMS_BUFFER].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     graphicsBindings[EntityDescriptorBindings::Graphics::CONTROL_PARAMS_BUFFER].descriptorCount = 1;
     graphicsBindings[EntityDescriptorBindings::Graphics::CONTROL_PARAMS_BUFFER].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    // Binding 4: Triangle index buffer
+    graphicsBindings[EntityDescriptorBindings::Graphics::TRI_INDEX_BUFFER].binding = EntityDescriptorBindings::Graphics::TRI_INDEX_BUFFER;
+    graphicsBindings[EntityDescriptorBindings::Graphics::TRI_INDEX_BUFFER].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    graphicsBindings[EntityDescriptorBindings::Graphics::TRI_INDEX_BUFFER].descriptorCount = 1;
+    graphicsBindings[EntityDescriptorBindings::Graphics::TRI_INDEX_BUFFER].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
     VkDescriptorSetLayoutCreateInfo graphicsLayoutInfo{};
     graphicsLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -367,7 +379,8 @@ bool EntityDescriptorManager::updateComputeDescriptorSet() {
         {EntityDescriptorBindings::Compute::TRI_REST_BUFFER, bufferManager->getTriangleRestBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
         {EntityDescriptorBindings::Compute::TRI_AREA_BUFFER, bufferManager->getTriangleAreaBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
         {EntityDescriptorBindings::Compute::NODE_FORCE_BUFFER, bufferManager->getNodeForceBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
-        {EntityDescriptorBindings::Compute::NODE_REST_BUFFER, bufferManager->getNodeRestBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER}
+        {EntityDescriptorBindings::Compute::NODE_REST_BUFFER, bufferManager->getNodeRestBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
+        {EntityDescriptorBindings::Compute::TRI_INDEX_BUFFER, bufferManager->getTriangleIndexBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER}
     };
 
     return DescriptorUpdateHelper::updateDescriptorSet(*getContext(), computeDescriptorSet, bindings);
@@ -406,7 +419,8 @@ bool EntityDescriptorManager::updateGraphicsDescriptorSet() {
             {EntityDescriptorBindings::Graphics::UNIFORM_BUFFER, uniformBuffers[i], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},
             {EntityDescriptorBindings::Graphics::POSITION_BUFFER, bufferManager->getPositionBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
             {EntityDescriptorBindings::Graphics::MOVEMENT_PARAMS_BUFFER, bufferManager->getMovementParamsBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
-            {EntityDescriptorBindings::Graphics::CONTROL_PARAMS_BUFFER, bufferManager->getControlParamsBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER}
+            {EntityDescriptorBindings::Graphics::CONTROL_PARAMS_BUFFER, bufferManager->getControlParamsBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
+            {EntityDescriptorBindings::Graphics::TRI_INDEX_BUFFER, bufferManager->getTriangleIndexBuffer(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER}
         };
 
         if (!DescriptorUpdateHelper::updateDescriptorSet(*getContext(), graphicsDescriptorSets[i], bindings)) {

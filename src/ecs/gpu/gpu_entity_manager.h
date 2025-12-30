@@ -58,6 +58,7 @@ struct GPUFEMStaging {
     std::vector<glm::vec4> bodyParams;
     std::vector<glm::vec4> triRestData;  // DmInv 2x2
     std::vector<float> triRestArea;
+    std::vector<glm::uvec4> triIndices;
 
     void reserve(size_t bodyCount) {
         size_t nodeCount = bodyCount * SoftBodyConstants::kParticlesPerBody;
@@ -69,6 +70,7 @@ struct GPUFEMStaging {
         bodyParams.reserve(bodyCount);
         triRestData.reserve(bodyCount);
         triRestArea.reserve(bodyCount);
+        triIndices.reserve(bodyCount * SoftBodyConstants::kTrianglesPerBody);
     }
 
     void clear() {
@@ -80,6 +82,7 @@ struct GPUFEMStaging {
         bodyParams.clear();
         triRestData.clear();
         triRestArea.clear();
+        triIndices.clear();
     }
 };
 
@@ -115,6 +118,7 @@ public:
     VkBuffer getTriangleAreaBuffer() const { return bufferManager.getTriangleAreaBuffer(); }
     VkBuffer getNodeForceBuffer() const { return bufferManager.getNodeForceBuffer(); }
     VkBuffer getNodeRestBuffer() const { return bufferManager.getNodeRestBuffer(); }
+    VkBuffer getTriangleIndexBuffer() const { return bufferManager.getTriangleIndexBuffer(); }
     
     // Position buffers remain the same
     VkBuffer getPositionBuffer() const { return bufferManager.getPositionBuffer(); }
@@ -144,6 +148,7 @@ public:
     VkDeviceSize getTriangleAreaBufferSize() const { return bufferManager.getTriangleAreaBufferSize(); }
     VkDeviceSize getNodeForceBufferSize() const { return bufferManager.getNodeForceBufferSize(); }
     VkDeviceSize getNodeRestBufferSize() const { return bufferManager.getNodeRestBufferSize(); }
+    VkDeviceSize getTriangleIndexBufferSize() const { return bufferManager.getTriangleIndexBufferSize(); }
     VkDeviceSize getPositionBufferSize() const { return bufferManager.getPositionBufferSize(); }
     
     

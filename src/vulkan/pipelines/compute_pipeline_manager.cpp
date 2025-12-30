@@ -322,7 +322,7 @@ namespace ComputePipelinePresets {
         VkPushConstantRange pushConstant{};
         pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
         pushConstant.offset = 0;
-        pushConstant.size = sizeof(float) * 2 + sizeof(uint32_t) * 6;  // time, deltaTime, bodyCount, nodeCount, frame, elementOffset, mode, padding
+        pushConstant.size = sizeof(float) * 2 + sizeof(uint32_t) * 8;  // time, deltaTime, bodyCount, nodeCount, triangleCount, frame, elementOffset, mode, padding
         state.pushConstantRanges.push_back(pushConstant);
         
         return state;

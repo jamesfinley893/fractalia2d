@@ -34,6 +34,7 @@ public:
     FrameGraphTypes::ResourceId getTriangleAreaBufferId() const { return triangleAreaBufferId; }
     FrameGraphTypes::ResourceId getNodeForceBufferId() const { return nodeForceBufferId; }
     FrameGraphTypes::ResourceId getNodeRestBufferId() const { return nodeRestBufferId; }
+    FrameGraphTypes::ResourceId getTriangleIndexBufferId() const { return triangleIndexBufferId; }
     FrameGraphTypes::ResourceId getPositionBufferId() const { return positionBufferId; }
     FrameGraphTypes::ResourceId getCurrentPositionBufferId() const { return currentPositionBufferId; }
     FrameGraphTypes::ResourceId getTargetPositionBufferId() const { return targetPositionBufferId; }
@@ -60,6 +61,7 @@ private:
     FrameGraphTypes::ResourceId triangleAreaBufferId = 0;
     FrameGraphTypes::ResourceId nodeForceBufferId = 0;
     FrameGraphTypes::ResourceId nodeRestBufferId = 0;
+    FrameGraphTypes::ResourceId triangleIndexBufferId = 0;
     FrameGraphTypes::ResourceId positionBufferId = 0;
     FrameGraphTypes::ResourceId currentPositionBufferId = 0;
     FrameGraphTypes::ResourceId targetPositionBufferId = 0;

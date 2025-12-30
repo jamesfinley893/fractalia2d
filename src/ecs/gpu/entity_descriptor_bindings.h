@@ -32,10 +32,11 @@ namespace EntityDescriptorBindings {
             TRI_REST_BUFFER = 14,
             TRI_AREA_BUFFER = 15,
             NODE_FORCE_BUFFER = 16,
-            NODE_REST_BUFFER = 17
+            NODE_REST_BUFFER = 17,
+            TRI_INDEX_BUFFER = 18
         };
         
-        constexpr uint32_t BINDING_COUNT = 18;
+        constexpr uint32_t BINDING_COUNT = 19;
     }
 
     // Graphics descriptor set bindings (rendering pipeline)
@@ -44,9 +45,10 @@ namespace EntityDescriptorBindings {
             UNIFORM_BUFFER = 0,      // Camera matrices
             POSITION_BUFFER = 1,     // Entity positions
             MOVEMENT_PARAMS_BUFFER = 2,  // Movement params for color
-            CONTROL_PARAMS_BUFFER = 3    // Control params for player rendering
+            CONTROL_PARAMS_BUFFER = 3,   // Control params for player rendering
+            TRI_INDEX_BUFFER = 4         // Triangle indices for soft bodies
         };
         
-        constexpr uint32_t BINDING_COUNT = 4;
+        constexpr uint32_t BINDING_COUNT = 5;
     }
 }
